@@ -1,0 +1,61 @@
+{
+  "name": "battery_nb_cert_docs",
+  "engine": "cloudflare-workers-kv",
+  "binding": "USERS_DB",
+  "namespaceTitle": "battery-nb-cert-users",
+  "description": "Spins up the users database for this Worker. Workers KV has no SQL DDL, so this JSON is the table contract. database/getUserName.js creates the table document on first write. The namespace itself is created from wrangler.jsonc (kv_namespaces) on deploy, or by hand in the Cloudflare dashboard under Workers KV.",
+  "create": {
+    "kv_namespaces": [
+      {
+        "binding": "USERS_DB",
+        "title": "battery-nb-cert-users"
+      }
+    ]
+  },
+  "tables": [
+    {
+      "name": "users",
+      "kvKey": "table:users",
+      "emptyDocument": {
+        "table": "users",
+        "updatedAt": null,
+        "rows": []
+      },
+      "columns": [
+        {
+          "name": "id",
+          "type": "string",
+          "primaryKey": true,
+          "description": "Stable id kept in the browser localStorage"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "maxLength": 64
+        },
+        {
+          "name": "color",
+          "type": "string",
+          "enum": ["red", "green"],
+          "default": "green"
+        },
+        {
+          "name": "online",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "name": "connectedAt",
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "name": "updatedAt",
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    }
+  ]
+}

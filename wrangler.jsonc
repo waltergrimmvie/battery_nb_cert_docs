@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "battery-nb-cert-docs",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-06",
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "single-page-application"
+  },
+  // Workers KV is the users database. Omit id so Wrangler 4.45+ can
+  // create the namespace on deploy. If a Git build asks for an id,
+  // create the namespace in the dashboard and paste it here.
+  "kv_namespaces": [
+    { "binding": "USERS_DB" }
+  ],
+  // One Durable Object is the WebSocket room. Workers alone cannot
+  // fan a message out to every open browser; this object can.
+  "durable_objects": {
+    "bindings": [
+      { "name": "PRESENCE", "class_name": "PresenceRoom" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PresenceRoom"] }
+  ]
+}

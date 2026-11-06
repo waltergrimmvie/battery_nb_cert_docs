@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Battery NB Cert Desk</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="wrap">
+    <p class="kicker">Notified body floor</p>
+    <h1>Battery NB Cert Desk</h1>
+    <p class="lede">Type your name and press Enter. Everyone with this page open sees you at once, and a toggle on your row turns the name red or green for the whole desk.</p>
+
+    <section class="panel" aria-labelledby="join-title">
+      <h2 id="join-title" class="sr" style="position:absolute;left:-999px">Join</h2>
+      <form id="join">
+        <label for="name">Your name</label>
+        <div class="row">
+          <input id="name" name="name" autocomplete="nickname" maxlength="64" placeholder="Name on the desk" required />
+          <button type="submit">Enter</button>
+        </div>
+      </form>
+      <p class="you" id="you" hidden></p>
+      <button type="button" class="ghost" id="rename" hidden>Use another name</button>
+    </section>
+
+    <section class="panel" aria-labelledby="desk-title">
+      <div class="head">
+        <h2 id="desk-title">On the desk</h2>
+        <p class="status" id="status">Connecting</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Color</th>
+            <th>State</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="users"></tbody>
+      </table>
+      <p class="empty" id="empty">Nobody is on the desk yet.</p>
+    </section>
+  </main>
+  <script src="/client.js"></script>
+</body>
+</html>
