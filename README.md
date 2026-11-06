@@ -6,7 +6,7 @@ The page is static. The real-time room is one Cloudflare Durable Object. The `us
 
 ## How a name moves
 
-1. The browser keeps a stable id and the name in `localStorage`.
+1. The browser keeps a stable id in `localStorage`. The name is stored under the key `user name` (and the older `battery_nb_cert_docs.userName` key). On every open the page reads `user name` first and fills the field. A dropdown next to the field offers Judy, Marcus, Wei, and Walter; picking one writes that name the same way Enter does.
 2. On Enter it opens `wss://<your-domain>/ws` (or reuses the socket it opened on load).
 3. The Worker in [src/index.js](src/index.js) accepts only the `/ws` upgrade and forwards it to a single Durable Object named `battery-nb-cert-desk`.
 4. [WebSockets/addUser.js](WebSockets/addUser.js) puts the person in the in-memory online array.

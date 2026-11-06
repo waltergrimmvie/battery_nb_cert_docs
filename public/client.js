@@ -1,8 +1,10 @@
 const STORAGE_ID = "battery_nb_cert_docs.clientId";
-const STORAGE_NAME = "battery_nb_cert_docs.userName";
+const STORAGE_NAME = "user name";
+const KNOWN_NAMES = ["Judy", "Marcus", "Wei", "Walter"];
 
 const form = document.querySelector("#join");
 const nameInput = document.querySelector("#name");
+const known = document.querySelector("#known");
 const you = document.querySelector("#you");
 const rename = document.querySelector("#rename");
 const statusEl = document.querySelector("#status");
@@ -15,16 +17,31 @@ let users = [];
 let retry = 0;
 let joined = false;
 
-nameInput.value = localStorage.getItem(STORAGE_NAME) || "";
+const storedOnOpen = readUserName();
+nameInput.value = storedOnOpen;
+syncKnown(storedOnOpen);
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  const name = nameInput.value;
-  if (!name.trim()) return;
-  localStorage.setItem(STORAGE_NAME, name.trim().slice(0, 64));
+  const name = rememberName(nameInput.value);
+  if (!name) return;
   joined = true;
   showYou();
   send({ type: "addUser", clientId, name });
+});
+
+known.addEventListener("change", () => {
+  if (!known.value) return;
+  nameInput.value = known.value;
+  const name = rememberName(known.value);
+  if (!name) return;
+  joined = true;
+  showYou();
+  send({ type: "addUser", clientId, name });
+});
+
+nameInput.addEventListener("input", () => {
+  syncKnown(nameInput.value);
 });
 
 rename.addEventListener("click", () => {
@@ -45,8 +62,25 @@ function loadId() {
   return id;
 }
 
+function readUserName() {
+  return localStorage.getItem(STORAGE_NAME) || localStorage.getItem("battery_nb_cert_docs.userName") || "";
+}
+
+function rememberName(raw) {
+  const clean = String(raw || "").trim().slice(0, 64);
+  if (!clean) return "";
+  localStorage.setItem(STORAGE_NAME, clean);
+  localStorage.setItem("battery_nb_cert_docs.userName", clean);
+  syncKnown(clean);
+  return clean;
+}
+
+function syncKnown(name) {
+  known.value = KNOWN_NAMES.includes(name) ? name : "";
+}
+
 function showYou() {
-  const name = localStorage.getItem(STORAGE_NAME);
+  const name = readUserName();
   if (!name) return;
   you.hidden = false;
   you.textContent = `Signed on this browser as ${name}.`;
@@ -62,7 +96,7 @@ function connect() {
     retry = 0;
     setStatus("Live", "live");
     send({ type: "hello" });
-    const name = localStorage.getItem(STORAGE_NAME);
+    const name = readUserName();
     if (name) {
       joined = true;
       showYou();
