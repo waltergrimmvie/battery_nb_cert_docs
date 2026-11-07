@@ -83,6 +83,7 @@ export function prepareEditor(rawFiles) {
     "index.html",
     "version.txt",
     "public/paint/boot.js",
+    "wwwroot/js/modules/document-loader.js",
     "fonts/Calibri-Regular.woff",
     "fonts/Cambria-Regular.woff",
   ];
@@ -112,17 +113,17 @@ export function prepareEditor(rawFiles) {
 }
 
 function installViewerHooks(source) {
-  const loader = /async function ([A-Za-z0-9_]+)\(\)\{for\(let e of\[[^\]]*\]\)try\{let t=await fetch\(e,\{cache:`no-store`\}\);if\(!t\.ok\)continue;let n=await t\.arrayBuffer\(\);if\(n\.byteLength<100\)continue;let\{importDocx:r\}=await X\(async\(\)=>\{let\{importDocx:e\}=await Promise\.resolve\(\)\.then\(\(\)=>\(([A-Za-z0-9_]+)\(\),([A-Za-z0-9_]+)\)\);return\{importDocx:e\}\},void 0\),i=await r\(n,`[^`]+`\);if\(U\.opened\)return!0;if\(i\?\.sections\?\.length\)return ([A-Za-z0-9_]+)\(`log`,`startup: imported `\+e\),([A-Za-z0-9_]+)\(i,`[^`]+`\),!0\}catch/;
+  const loader = /async function ([A-Za-z0-9_]+)\(\)\{for\(let e of\[[^\]]*\]\)try\{let t=await fetch\(e,\{cache:`no-store`\}\);if\(!t\.ok\)continue;let n=await t\.arrayBuffer\(\);if\(n\.byteLength<100\)continue;let\{importDocx:r\}=await ([A-Za-z0-9_]+)\(async\(\)=>\{let\{importDocx:e\}=await Promise\.resolve\(\)\.then\(\(\)=>\(([A-Za-z0-9_]+)\(\),([A-Za-z0-9_]+)\)\);return\{importDocx:e\}\},void 0\),i=await r\(n,`[^`]*`\);if\(U\.opened\)return!0;if\(i\?\.sections\?\.length\)return ([A-Za-z0-9_]+)\(`log`,`startup: imported `\+e\),([A-Za-z0-9_]+)\(i,`[^`]*`\),!0\}catch/;
   const found = source.match(loader);
   if (!found) throw new Error("The editor gzip has no document loader.");
   source = source.replace(
     loader,
-    "async function $1(){const passed=new URLSearchParams(location.search).get(`src`);if(!passed)return!1;for(let e of[passed])try{let t=await fetch(e,{cache:`no-store`});if(!t.ok)continue;let n=await t.arrayBuffer();if(n.byteLength<100)continue;let{importDocx:r}=await X(async()=>{let{importDocx:e}=await Promise.resolve().then(()=>($2(),$3));return{importDocx:e}},void 0),stem=decodeURIComponent((e.split(`/`).pop()||`document`).replace(/\\.docx$/i,``)),i=await r(n,stem);if(U.opened)return!0;if(i?.sections?.length)return $4(`log`,`startup: converted docx to JSON `+e),$5(i,stem+`.docx`),!0}catch",
+    "async function $1(){const passed=new URLSearchParams(location.search).get(`src`);if(!passed)return!1;for(let e of[passed])try{let t=await fetch(e,{cache:`no-store`});if(!t.ok)continue;let n=await t.arrayBuffer();if(n.byteLength<100)continue;let{importDocx:r}=await $2(async()=>{let{importDocx:e}=await Promise.resolve().then(()=>($3(),$4));return{importDocx:e}},void 0),stem=decodeURIComponent((e.split(`/`).pop()||`document`).replace(/\\.docx$/i,``)),i=await r(n,stem);if(U.opened)return!0;if(i?.sections?.length)return $5(`log`,`startup: converted docx to JSON `+e),$6(i,stem+`.docx`),!0}catch",
   );
 
   source = source.replace(
-    /,navigator\.serviceWorker\?\.getRegistrations&&navigator\.serviceWorker\.getRegistrations\(\)\.then\(e=>e\.forEach\(e=>e\.unregister\(\)\)\)\.catch\(\(\)=>\{\}\)/,
-    "",
+    /navigator\.serviceWorker\?\.getRegistrations&&navigator\.serviceWorker\.getRegistrations\(\)\.then\(e=>e\.forEach\(e=>e\.unregister\(\)\)\)\.catch\(\(\)=>\{\}\)/,
+    "0",
   );
   const closed = source.replace(
     /finally\{([A-Za-z0-9_]+)\(`log`,`startup: end`\),([A-Za-z0-9_]+)\(\)\}/,
@@ -135,10 +136,10 @@ function installViewerHooks(source) {
     "\nwindow.editorReady=new Promise((resolve)=>{window.__editorReady=resolve});" +
     "window.populate=async function(src){const response=await fetch(src,{cache:`no-store`});if(!response.ok)throw Error(`Could not open the document`);" +
     "const buffer=await response.arrayBuffer();const stem=decodeURIComponent((String(src).split(`/`).pop()||`document`).replace(/\\.docx$/i,``));" +
-    "const {importDocx}=await X(async()=>{const {importDocx:load}=await Promise.resolve().then(()=>(" +
-    found[2] + "()," + found[3] + "));return{importDocx:load}},void 0);" +
+    "const {importDocx}=await " + found[2] + "(async()=>{const {importDocx:load}=await Promise.resolve().then(()=>(" +
+    found[3] + "()," + found[4] + "));return{importDocx:load}},void 0);" +
     "const doc=await importDocx(buffer,stem);if(!doc?.sections?.length)throw Error(`The import returned no sections`);" +
-    "U.opened=!0;" + found[5] + "(doc,stem+`.docx`)};\n";
+    "U.opened=!0;" + found[6] + "(doc,stem+`.docx`)};\n";
   return source;
 }
 
