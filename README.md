@@ -1,28 +1,38 @@
 # battery_nb_cert_docs
 
-Live desk for the battery notified-body floor. A person opens the HTML page, types a name, presses Enter, and every other open page sees them. Each row has a button that flips that name between red and green for everyone at once.
+Live desk for the battery notified-body floor. The browser asks for a name only when IndexedDB does not already have one. After that it opens the main page: a menu bar, a tree, and a content pane. The three-heads icon on the menu opens a mega menu of everyone currently on the desk. A toggle on a person flips that name between red and green for everyone at once.
 
-The page is static. The real-time room is one Cloudflare Durable Object. The `users` table is Workers KV.
+The page shell is static modules. The real-time room is one Cloudflare Durable Object. The `users` table is Workers KV.
 
 ## How a name moves
 
-1. The browser keeps a stable id in `localStorage`. The name is stored under the key `user name` (and the older `battery_nb_cert_docs.userName` key). On every open the page reads `user name` first and fills the field. A dropdown next to the field offers Judy, Marcus, Wei, and Walter; picking one writes that name the same way Enter does.
-2. On Enter it opens `wss://<your-domain>/ws` (or reuses the socket it opened on load).
-3. The Worker in [src/index.js](src/index.js) accepts only the `/ws` upgrade and forwards it to a single Durable Object named `battery-nb-cert-desk`.
-4. [WebSockets/addUser.js](WebSockets/addUser.js) puts the person in the in-memory online array.
-5. [database/getUserName.js](database/getUserName.js) writes that row into the KV document `table:users`.
-6. [WebSockets/connected.js](WebSockets/connected.js) marks them online. The object then sends the full online list to every socket.
-7. A toggle click calls [Functions/toggleUser.js](Functions/toggleUser.js), writes the new color through `getUserName`, and broadcasts again.
-8. When the last socket for that id closes, [WebSockets/disconnected.js](WebSockets/disconnected.js) sets `online` to false and the row leaves the table. The KV row stays, so the color is still there next time.
+1. [startup/startup.js](startup/startup.js) reads IndexedDB (`battery_nb_cert_docs` / `session` / `user`). A known name there skips login. Otherwise [setup/login_user.js](setup/login_user.js) shows a dropdown — Judy, Marcus, Wei, Walter — and Enter. There is no free-text name. The same module is the only place a name is chosen.
+2. The browser keeps a stable id in `localStorage`. The chosen name is also mirrored under `user name` for the next prompt, but IndexedDB is what decides whether login shows.
+3. [main_page/construct_main_page.js](main_page/construct_main_page.js) builds the shell. [menu_bar/construct_design/construct_design.js](menu_bar/construct_design/construct_design.js) adds the signed-in field and the three-heads icon. [menu_bar/populate/populate.js](menu_bar/populate/populate.js) fills the mega menu.
+4. On Enter the page opens `wss://<your-domain>/ws`.
+5. The Worker in [src/index.js](src/index.js) accepts the `/ws` upgrade and forwards it to a single Durable Object named `battery-nb-cert-desk`. It also serves the page modules listed above. [scripts/embed-browser.mjs](scripts/embed-browser.mjs) copies those files into [src/browser-files.js](src/browser-files.js) so a deploy with no build step can still serve them. Run `node scripts/embed-browser.mjs` after editing a page module.
+6. [WebSockets/addUser.js](WebSockets/addUser.js) puts the person in the in-memory online array.
+7. [database/getUserName.js](database/getUserName.js) writes that row into the KV document `table:users`.
+8. [WebSockets/connected.js](WebSockets/connected.js) marks them online. The object then sends the full online list to every socket.
+9. A toggle in the mega menu calls [Functions/toggleUser.js](Functions/toggleUser.js), writes the new color through `getUserName`, and broadcasts again.
+10. When the last socket for that id closes, [WebSockets/disconnected.js](WebSockets/disconnected.js) sets `online` to false and the row leaves the menu. The KV row stays, so the color is still there next time.
 
 Workers cannot hold a WebSocket fan-out by themselves. Each request can land on a different isolate. The Durable Object is the one place that owns every socket for this desk. KV is the durable copy of the table. The object is the only writer, so the lack of KV transactions does not race.
+
+The first design draft is [grok_rules.txt](grok_rules.txt).
 
 ## Layout
 
 | Path | Role |
 | --- | --- |
-| [public/index.html](public/index.html) | Name field, Enter, live table |
-| [public/client.js](public/client.js) | localStorage, WebSocket, redraw |
+| [startup/startup.js](startup/startup.js) | Boot: IndexedDB, then login or main page |
+| [setup/login_user.js](setup/login_user.js) | Name dropdown and Enter |
+| [main_page/construct_main_page.js](main_page/construct_main_page.js) | Menu bar, tree, slider, content |
+| [main_page/demo_tree.js](main_page/demo_tree.js) | Five demo roots |
+| [menu_bar/construct_design/construct_design.js](menu_bar/construct_design/construct_design.js) | Three-heads icon and mega menu shell |
+| [menu_bar/populate/populate.js](menu_bar/populate/populate.js) | People currently logged in |
+| [grok_rules.txt](grok_rules.txt) | Design draft |
+| [public/index.html](public/index.html) | Loads startup.js |
 | [setup/create-database.json](setup/create-database.json) | Schema that creates the `users` table contract |
 | [database/getUserName.js](database/getUserName.js) | Read and write the users table in KV |
 | [WebSockets/addUser.js](WebSockets/addUser.js) | Add or update a user on the desk |

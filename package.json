@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "node --test test/logic.test.mjs"
+    "test": "node --test test/logic.test.mjs test/shell.test.mjs",
+    "embed": "node scripts/embed-browser.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.45.0"

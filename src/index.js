@@ -1,6 +1,12 @@
 import { PresenceRoom } from "./room.js";
+import { browserFiles } from "./browser-files.js";
 
 export { PresenceRoom };
+
+const MODULE_HEADER = {
+  "content-type": "text/javascript; charset=utf-8",
+  "cache-control": "no-cache",
+};
 
 export default {
   async fetch(request, env) {
@@ -12,6 +18,12 @@ export default {
       const id = env.PRESENCE.idFromName("battery-nb-cert-desk");
       return env.PRESENCE.get(id).fetch(request);
     }
-    return new Response("Not found", { status: 404 });
+
+    const moduleSource = browserFiles[url.pathname];
+    if (typeof moduleSource === "string") {
+      return new Response(moduleSource, { headers: MODULE_HEADER });
+    }
+
+    return env.ASSETS.fetch(request);
   },
 };

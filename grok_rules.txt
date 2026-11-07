@@ -1,0 +1,56 @@
+Battery NB — first design
+==========================
+
+This file is the design draft for the cert desk. startup/startup.js is the
+only entry. It calls the other procedures. Do not boot the page from anywhere
+else.
+
+Boot
+----
+1. Read the signed-in name from IndexedDB.
+   Database: battery_nb_cert_docs
+   Store: session
+   Key: user
+2. If that name is missing, show setup/login_user.js.
+   The login page is a dropdown of known names and an Enter button.
+   There is no field where a name can be typed.
+   Known names: Judy, Marcus, Wei, Walter.
+3. If the name is already in IndexedDB, skip login.
+4. The next procedure is main_page/construct_main_page.js.
+
+Main page
+---------
+The page is two rows and fills the viewport.
+
+Row 1. Menu bar, full width.
+Row 2. Fills the remaining width and height. Two columns and a slider
+       between them.
+       Left:  tree container
+       Middle: slider
+       Right: content container
+
+The slider drags. On a narrow screen the two panes stack and the slider
+still divides them.
+
+Menu bar
+--------
+menu_bar/construct_design builds the bar:
+- a signed-in field with the current name
+- an icon of three heads
+
+The icon opens a designed mega menu, not a native HTML dropdown.
+menu_bar/populate fills that menu with everyone currently logged in on
+the desk. Each person keeps the red / green toggle.
+
+Tree and content
+----------------
+The tree is a demo:
+- five root nodes
+- each root has six or seven child nodes
+Clicking a child shows demo text in the content container.
+Clicking a root only opens or closes its children.
+
+Desk
+----
+The WebSocket room is unchanged. The mega menu is the live list of who
+is on the desk. Names are text, never HTML.

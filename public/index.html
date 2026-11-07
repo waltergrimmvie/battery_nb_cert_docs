@@ -11,50 +11,7 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <main class="wrap">
-    <p class="kicker">Notified body floor</p>
-    <h1>Battery NB Cert Desk</h1>
-    <p class="lede">Type your name and press Enter. Everyone with this page open sees you at once, and a toggle on your row turns the name red or green for the whole desk.</p>
-
-    <section class="panel" aria-labelledby="join-title">
-      <h2 id="join-title" class="sr" style="position:absolute;left:-999px">Join</h2>
-      <form id="join">
-        <label for="name">Your name</label>
-        <div class="row">
-          <input id="name" name="name" autocomplete="nickname" maxlength="64" placeholder="Name on the desk" required />
-          <select id="known" aria-label="Known names">
-            <option value="">Choose a name</option>
-            <option>Judy</option>
-            <option>Marcus</option>
-            <option>Wei</option>
-            <option>Walter</option>
-          </select>
-          <button type="submit">Enter</button>
-        </div>
-      </form>
-      <p class="you" id="you" hidden></p>
-      <button type="button" class="ghost" id="rename" hidden>Use another name</button>
-    </section>
-
-    <section class="panel" aria-labelledby="desk-title">
-      <div class="head">
-        <h2 id="desk-title">On the desk</h2>
-        <p class="status" id="status">Connecting</p>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Color</th>
-            <th>State</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="users"></tbody>
-      </table>
-      <p class="empty" id="empty">Nobody is on the desk yet.</p>
-    </section>
-  </main>
-  <script src="/client.js"></script>
+  <div id="app">Loading the desk…</div>
+  <script type="module" src="/startup/startup.js"></script>
 </body>
 </html>
