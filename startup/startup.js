@@ -1,6 +1,7 @@
 import { KNOWN_NAMES, showLogin } from "../setup/login_user.js";
 import { constructMainPage } from "../main_page/construct_main_page.js";
 import { constructMenuDesign } from "../menu_bar/construct_design/construct_design.js";
+import { setOnlineUsers } from "../menu_bar/online_users.js";
 import { populateMenu } from "../menu_bar/populate/populate.js";
 import { connectDesk } from "./desk.js";
 
@@ -11,7 +12,8 @@ import { connectDesk } from "./desk.js";
 // 4. constructMainPage()    main_page/construct_main_page.js
 // 5. constructMenuDesign()  menu bar icon and mega menu
 // 6. connectDesk()          who is logged in
-// 7. populateMenu()         fills the mega menu on every desk update
+// 7. setOnlineUsers()       menu_bar/online_users.js keeps the online array
+// 8. populateMenu()         fills the mega menu on every desk update
 
 const DB_NAME = "battery_nb_cert_docs";
 const STORE = "session";
@@ -24,6 +26,7 @@ const root = document.querySelector("#app");
 const clientId = loadClientId();
 let desk = null;
 let dismissMenu = null;
+let unwatchOnline = null;
 
 start().catch((error) => {
   console.error(error);
@@ -52,11 +55,17 @@ async function enterDesk(name) {
     desk = null;
   }
 
+  if (unwatchOnline) {
+    unwatchOnline();
+    unwatchOnline = null;
+  }
+
   const page = constructMainPage(root);
   const menu = constructMenuDesign(page.menuBar, {
     name,
     onAnotherName: () => switchName(),
   });
+  unwatchOnline = menu.unwatchOnline;
   watchMenu(menu);
 
   desk = connectDesk({
@@ -64,6 +73,7 @@ async function enterDesk(name) {
     name,
     onStatus: menu.setStatus,
     onUsers(users) {
+      setOnlineUsers(users);
       populateMenu(menu.list, users, {
         clientId,
         count: menu.count,

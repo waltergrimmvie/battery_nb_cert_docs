@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { DEMO_TREE, demoCopy } from "../main_page/demo_tree.js";
 import { KNOWN_NAMES } from "../setup/login_user.js";
 import { browserFiles } from "../src/browser-files.js";
+import { setOnlineUsers, getOnlineUsers, watchOnlineUsers } from "../menu_bar/online_users.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -26,6 +27,17 @@ test("login offers the desk names and no typed name", () => {
   assert.match(login, /Choose your name and press Enter/);
 });
 
+test("online array replaces when someone logs on or off", () => {
+  const seen = [];
+  const stop = watchOnlineUsers((users) => seen.push(users.length));
+  assert.equal(setOnlineUsers([{ id: "a", name: "Walter" }, { id: "b", name: "Judy" }]), 2);
+  assert.deepEqual(getOnlineUsers().map((user) => user.name), ["Walter", "Judy"]);
+  assert.equal(setOnlineUsers([{ id: "a", name: "Walter" }]), 1);
+  assert.deepEqual(seen.slice(-2), [2, 1]);
+  setOnlineUsers([]);
+  stop();
+});
+
 test("worker serves the same modules startup calls", () => {
   const expected = [
     "/startup/startup.js",
@@ -34,6 +46,7 @@ test("worker serves the same modules startup calls", () => {
     "/main_page/construct_main_page.js",
     "/main_page/demo_tree.js",
     "/menu_bar/construct_design/construct_design.js",
+    "/menu_bar/online_users.js",
     "/menu_bar/populate/populate.js",
   ];
   for (const path of expected) {

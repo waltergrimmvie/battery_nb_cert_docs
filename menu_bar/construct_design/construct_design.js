@@ -1,3 +1,5 @@
+import { watchOnlineUsers } from "../online_users.js";
+
 const HEADS_SVG = `<svg class="heads-svg" viewBox="0 0 48 32" aria-hidden="true" focusable="false">
   <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="11" cy="11" r="4.2" opacity="0.45"/>
@@ -40,11 +42,19 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "heads";
-  button.setAttribute("aria-label", "Who is on the desk");
   button.setAttribute("aria-haspopup", "dialog");
   button.setAttribute("aria-expanded", "false");
   button.setAttribute("aria-controls", "desk-menu");
-  button.innerHTML = HEADS_SVG;
+
+  const face = document.createElement("span");
+  face.className = "heads-face";
+  face.innerHTML = HEADS_SVG;
+  const onlineCount = document.createElement("span");
+  onlineCount.className = "heads-count";
+  onlineCount.setAttribute("aria-hidden", "true");
+  onlineCount.textContent = "0";
+  face.append(onlineCount);
+  button.append(face);
 
   const anchor = document.createElement("div");
   anchor.className = "menu-anchor";
@@ -92,13 +102,20 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
     button.setAttribute("aria-expanded", open ? "true" : "false");
   }
 
+  function showCount(total) {
+    onlineCount.textContent = String(total);
+    button.setAttribute("aria-label", `Who is on the desk, ${total} online`);
+  }
+
   button.addEventListener("click", () => setOpen(panel.hidden));
+  const unwatchOnline = watchOnlineUsers((users) => showCount(users.length));
 
   return {
     button,
     panel,
     list,
     count,
+    unwatchOnline,
     close() {
       setOpen(false);
     },

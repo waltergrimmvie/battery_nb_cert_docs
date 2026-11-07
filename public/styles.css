@@ -181,11 +181,11 @@ select:focus, button:focus-visible, .slider:focus-visible {
 .menu-anchor { position: relative; }
 
 .heads {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 56px;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 2px 0 1px;
   border: 1px solid var(--line);
   background: #fff;
   color: var(--ink);
@@ -196,7 +196,28 @@ select:focus, button:focus-visible, .slider:focus-visible {
   color: var(--brass);
 }
 
-.heads-svg { width: 32px; height: 22px; display: block; }
+.heads-face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.heads-svg {
+  width: 30px;
+  height: 18px;
+  display: block;
+  margin-top: -3px;
+}
+
+.heads-count {
+  font-family: var(--font-display);
+  font-weight: 560;
+  font-size: 14px;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-top: 1px;
+}
 
 .mega {
   position: absolute;

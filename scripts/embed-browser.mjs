@@ -11,6 +11,7 @@ const files = [
   "main_page/construct_main_page.js",
   "main_page/demo_tree.js",
   "menu_bar/construct_design/construct_design.js",
+  "menu_bar/online_users.js",
   "menu_bar/populate/populate.js",
 ];
 

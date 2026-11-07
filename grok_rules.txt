@@ -36,7 +36,12 @@ Menu bar
 --------
 menu_bar/construct_design builds the bar:
 - a signed-in field with the current name
-- an icon of three heads
+- an icon of three heads, shifted up, with the online count written under them
+  in the Battery NB cert type
+
+menu_bar/online_users.js keeps the array of everyone currently online.
+When somebody logs on or off, that array is replaced and the number on
+the icon changes.
 
 The icon opens a designed mega menu, not a native HTML dropdown.
 menu_bar/populate fills that menu with everyone currently logged in on
