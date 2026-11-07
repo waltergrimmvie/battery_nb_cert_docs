@@ -185,6 +185,25 @@ select:focus, button:focus-visible, .slider:focus-visible {
 
 .signed-field strong { font-size: 15px; font-weight: 600; }
 
+.tree-toggle {
+  display: none;
+  width: 40px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.tree-toggle-svg { width: 22px; height: 22px; display: block; }
+
+.tree-toggle[aria-pressed="true"] {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
 .menu-anchor { position: relative; }
 
 .heads {
@@ -464,35 +483,52 @@ select:focus, button:focus-visible, .slider:focus-visible {
 
 .tree-status, .boot-error { padding: 0 10px; color: var(--muted); }
 
-.workspace.stacked { flex-direction: column; }
+.workspace.narrow .slider { display: none; }
 
-.workspace.stacked .tree-container { width: 100%; height: 42%; }
-
-.workspace.stacked .slider { flex-basis: 12px; width: 100%; cursor: row-resize; }
-
-.workspace.stacked .slider::before {
-  top: 5px;
-  bottom: auto;
-  left: 16px;
-  right: 16px;
-  width: auto;
-  height: 2px;
+.workspace.narrow .tree-container,
+.workspace.narrow .content-container {
+  width: 100%;
+  height: auto;
+  flex: 1 1 auto;
 }
 
+.workspace.narrow:not(.show-tree) .tree-container { display: none; }
+
+.workspace.narrow.show-tree .content-container { display: none; }
+
 @media (max-width: 720px) {
-  .menu-bar-inner { flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; }
-  .status { order: 3; }
+  .menu-bar-inner {
+    flex-wrap: nowrap;
+    gap: 6px;
+    min-height: 56px;
+    padding: 6px 8px;
+  }
+  .tree-toggle { display: grid; }
+  .brand { flex: 0 1 auto; min-width: 0; }
+  .brand-kicker { font-size: 9px; letter-spacing: 0.08em; }
+  .brand-title { font-size: 15px; white-space: nowrap; }
+  .status, .version { flex: 0 0 auto; font-size: 11px; white-space: nowrap; }
+  .menu-cluster { gap: 6px; min-width: 0; flex: 0 1 auto; }
+  .signed-field { min-width: 0; padding: 3px 6px; }
+  .signed-field span { font-size: 9px; letter-spacing: 0.04em; }
+  .signed-field strong {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 4.6rem;
+  }
+  .heads { width: 40px; height: 44px; }
   .mega {
     position: fixed;
-    top: 76px;
+    top: 64px;
     left: 12px;
     right: 12px;
     width: auto;
-    max-height: calc(100dvh - 96px);
+    max-height: calc(100dvh - 80px);
     overflow: auto;
   }
   .note { padding: 20px 16px 32px; }
-  .signed-field { min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

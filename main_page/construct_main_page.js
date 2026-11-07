@@ -37,7 +37,21 @@ export function constructMainPage(root) {
   showIntro(content);
   attachSlider(slider, tree, workspace);
 
-  return { app, menuBar, tree, content, slider, workspace };
+  return {
+    app,
+    menuBar,
+    tree,
+    content,
+    slider,
+    workspace,
+    bindTree(button) {
+      button.addEventListener("click", () => {
+        const open = !workspace.classList.contains("show-tree");
+        workspace.classList.toggle("show-tree", open);
+        button.setAttribute("aria-pressed", open ? "true" : "false");
+      });
+    },
+  };
 }
 
 function renderTree(tree, content) {
@@ -103,6 +117,7 @@ function fillTree(nav, tree, content, directories) {
         }
         button.setAttribute("aria-current", "true");
         showDocument(content, directory.name, file);
+        showContentPane();
       });
       kids.append(button);
     }
@@ -133,6 +148,14 @@ function showIntro(content) {
 
 let viewerFrame = null;
 let viewerReady = Promise.resolve();
+let workspaceEl = null;
+
+function showContentPane() {
+  if (!workspaceEl || !workspaceEl.classList.contains("narrow")) return;
+  workspaceEl.classList.remove("show-tree");
+  const button = document.querySelector(".tree-toggle");
+  if (button) button.setAttribute("aria-pressed", "false");
+}
 
 function showDocument(content, directory, file) {
   const src = documentUrl(directory, file);
@@ -177,6 +200,7 @@ function documentUrl(directory, file) {
 }
 
 function attachSlider(slider, tree, workspace) {
+  workspaceEl = workspace;
   const narrow = window.matchMedia("(max-width: 720px)");
   let dragging = false;
 
@@ -185,26 +209,23 @@ function attachSlider(slider, tree, workspace) {
   }
 
   function applyMode() {
-    const isStacked = stacked();
-    workspace.classList.toggle("stacked", isStacked);
-    slider.setAttribute("aria-orientation", isStacked ? "horizontal" : "vertical");
-    if (isStacked) {
+    const isNarrow = stacked();
+    workspace.classList.toggle("narrow", isNarrow);
+    if (isNarrow) {
       tree.style.width = "";
-      if (!tree.style.height) tree.style.height = "42%";
-    } else {
       tree.style.height = "";
-      if (!tree.style.width) tree.style.width = "300px";
-    }
-  }
-
-  function setSize(clientX, clientY) {
-    const rect = workspace.getBoundingClientRect();
-    if (stacked()) {
-      const next = Math.min(Math.max(clientY - rect.top, 120), rect.height - 160);
-      tree.style.height = `${next}px`;
-      slider.setAttribute("aria-valuenow", String(Math.round(next)));
       return;
     }
+    workspace.classList.remove("show-tree");
+    const button = document.querySelector(".tree-toggle");
+    if (button) button.setAttribute("aria-pressed", "false");
+    tree.style.height = "";
+    if (!tree.style.width) tree.style.width = "300px";
+  }
+
+  function setSize(clientX) {
+    if (stacked()) return;
+    const rect = workspace.getBoundingClientRect();
     const next = Math.min(Math.max(clientX - rect.left, 180), Math.min(560, rect.width - 220));
     tree.style.width = `${next}px`;
     slider.setAttribute("aria-valuenow", String(Math.round(next)));
@@ -213,11 +234,11 @@ function attachSlider(slider, tree, workspace) {
   slider.addEventListener("pointerdown", (event) => {
     dragging = true;
     slider.setPointerCapture(event.pointerId);
-    setSize(event.clientX, event.clientY);
+    setSize(event.clientX);
   });
   slider.addEventListener("pointermove", (event) => {
     if (!dragging) return;
-    setSize(event.clientX, event.clientY);
+    setSize(event.clientX);
   });
   slider.addEventListener("pointerup", () => {
     dragging = false;
@@ -227,20 +248,16 @@ function attachSlider(slider, tree, workspace) {
   });
   slider.addEventListener("keydown", (event) => {
     const step = event.shiftKey ? 48 : 16;
-    const current = stacked()
-      ? Number.parseFloat(tree.style.height) || tree.getBoundingClientRect().height
-      : Number.parseFloat(tree.style.width) || tree.getBoundingClientRect().width;
+    const current = Number.parseFloat(tree.style.width) || tree.getBoundingClientRect().width;
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       event.preventDefault();
       const rect = workspace.getBoundingClientRect();
-      if (stacked()) setSize(0, rect.top + current - step);
-      else setSize(rect.left + current - step, 0);
+      setSize(rect.left + current - step);
     }
     if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       event.preventDefault();
       const rect = workspace.getBoundingClientRect();
-      if (stacked()) setSize(0, rect.top + current + step);
-      else setSize(rect.left + current + step, 0);
+      setSize(rect.left + current + step);
     }
   });
 

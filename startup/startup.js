@@ -77,6 +77,7 @@ async function enterDesk(name) {
     name,
     onAnotherName: () => switchName(),
   });
+  page.bindTree(menu.treeButton);
   unwatchOnline = menu.unwatchOnline;
   watchMenu(menu);
 

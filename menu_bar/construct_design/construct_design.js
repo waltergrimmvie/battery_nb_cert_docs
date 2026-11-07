@@ -1,6 +1,17 @@
 const stamp = new URL(import.meta.url).search;
 const { watchOnlineUsers } = await import(`../online_users.js${stamp}`);
 
+const TREE_SVG = `<svg class="tree-toggle-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 21V10"/>
+    <path d="M12 14H7.5"/>
+    <path d="M12 10H16.5"/>
+    <circle cx="12" cy="6.5" r="2.2"/>
+    <circle cx="6.2" cy="14" r="2.2"/>
+    <circle cx="17.8" cy="10" r="2.2"/>
+  </g>
+</svg>`;
+
 const HEADS_SVG = `<svg class="heads-svg" viewBox="0 0 48 32" aria-hidden="true" focusable="false">
   <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="11" cy="11" r="4.2" opacity="0.45"/>
@@ -102,11 +113,18 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
   panel.append(head, list, foot);
   anchor.append(button, panel);
 
+  const treeButton = document.createElement("button");
+  treeButton.type = "button";
+  treeButton.className = "tree-toggle";
+  treeButton.setAttribute("aria-label", "Documents");
+  treeButton.setAttribute("aria-pressed", "false");
+  treeButton.innerHTML = TREE_SVG;
+
   const cluster = document.createElement("div");
   cluster.className = "menu-cluster";
   cluster.append(field, anchor);
 
-  bar.append(brand, status, version, cluster);
+  bar.append(treeButton, brand, status, version, cluster);
   menuBar.append(bar);
 
   function setOpen(open) {
@@ -124,6 +142,7 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
 
   return {
     button,
+    treeButton,
     panel,
     list,
     count,
