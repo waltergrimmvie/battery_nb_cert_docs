@@ -40,7 +40,7 @@ function editorFile(pathname) {
 async function localEditorVersion(env) {
   if (savedEditorVersion) return savedEditorVersion;
   try {
-    const stored = await env.ASSETS.fetch(new Request("https://desk.local/editor_version.txt"));
+    const stored = await env.ASSETS.fetch(new Request("https://desk.local/version_text_editor.txt"));
     if (stored.ok) savedEditorVersion = versionNumber(await stored.text());
   } catch {
     savedEditorVersion = 0;

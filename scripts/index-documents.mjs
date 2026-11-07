@@ -7,7 +7,11 @@ const documents = join(root, "documents");
 
 const directories = readdirSync(documents)
   .filter((name) => statSync(join(documents, name)).isDirectory())
-  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+  .sort((a, b) => {
+    if (a === "General Documents") return -1;
+    if (b === "General Documents") return 1;
+    return a.localeCompare(b, undefined, { numeric: true });
+  })
   .map((name) => ({
     name,
     files: readdirSync(join(documents, name))

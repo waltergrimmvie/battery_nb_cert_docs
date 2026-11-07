@@ -12,7 +12,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 test("document directories are the tree and each Word file is a child", async () => {
   const index = JSON.parse(readFileSync(join(root, "documents/index.json"), "utf8"));
-  assert.deepEqual(index.map((directory) => directory.name), [
+  assert.equal(index[0].name, "General Documents");
+  assert.deepEqual(index[0].files, ["EU Battery Line Checklist.docx"]);
+  assert.deepEqual(index.slice(1).map((directory) => directory.name), [
     "01_Legal_Contractual_Matters",
     "02_Impartiality_Supply_Chain_Risks",
     "03_Financial_Liability_Resources",
@@ -28,11 +30,13 @@ test("document directories are the tree and each Word file is a child", async ()
     const published = readFileSync(join(root, "public/documents", directory.name, directory.files[0]));
     assert.ok(published.length > 1000);
   }
-  const first = index[0];
-  const bytes = readFileSync(join(root, "documents", first.name, first.files[0]));
+  const legal = index.find((directory) => directory.name === "01_Legal_Contractual_Matters");
+  const bytes = readFileSync(join(root, "documents", legal.name, legal.files[0]));
   const paragraphs = await docxToParagraphs(bytes);
   assert.match(paragraphs.join("\n"), /Verification Point 001/);
   assert.match(paragraphs.join("\n"), /Legal & Contractual Matters/);
+  const checklist = await docxToParagraphs(readFileSync(join(root, "documents", index[0].name, index[0].files[0])));
+  assert.match(checklist.join("\n"), /CLIENT REQUIREMENTS CHECKLIST/);
 });
 
 test("login offers the desk names and no typed name", () => {
