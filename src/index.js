@@ -1,6 +1,6 @@
 import { PresenceRoom } from "./room.js";
 import { browserFiles } from "./browser-files.js";
-import { downloadRichTextEditor, VIEWER_PREFIX } from "../server/refresh_editor.mjs";
+import { downloadRichTextEditor, versionNumber, VIEWER_PREFIX } from "../server/refresh_editor.mjs";
 
 export { PresenceRoom };
 
@@ -30,10 +30,22 @@ const FILE_TYPE = {
 };
 
 let editorFiles = new Map();
+let savedEditorVersion = 0;
 
 function editorFile(pathname) {
   if (!pathname.startsWith(VIEWER_PREFIX + "/")) return null;
   return editorFiles.get(pathname.slice(VIEWER_PREFIX.length + 1)) || null;
+}
+
+async function localEditorVersion(env) {
+  if (savedEditorVersion) return savedEditorVersion;
+  try {
+    const stored = await env.ASSETS.fetch(new Request("https://desk.local/editor_version.txt"));
+    if (stored.ok) savedEditorVersion = versionNumber(await stored.text());
+  } catch {
+    savedEditorVersion = 0;
+  }
+  return savedEditorVersion;
 }
 
 export default {
@@ -49,8 +61,11 @@ export default {
 
     if (url.pathname === "/editor/refresh") {
       try {
-        const pack = await downloadRichTextEditor();
-        editorFiles = pack.files;
+        const pack = await downloadRichTextEditor(await localEditorVersion(env));
+        if (!pack.report.skipped) {
+          editorFiles = pack.files;
+          savedEditorVersion = versionNumber(pack.report.version);
+        }
         return Response.json(pack.report, { headers: NO_STORE });
       } catch (error) {
         return Response.json(

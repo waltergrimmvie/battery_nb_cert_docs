@@ -1,13 +1,32 @@
-// Downloads the newest rich text editor and prepares it for the viewer directory.
-// The only network call is the gzip itself. The unpacked editor does not load
-// scripts, fonts, or pictures from anywhere else.
+// Checks the editor version first. The gzip is downloaded only when the
+// remote number is higher than the one saved in the root.
 
+export const EDITOR_VERSION_URL = "https://texteditor.dev-q-prox.com/version.txt";
 export const EDITOR_GZIP_URL = "https://texteditor.dev-q-prox.com/Download/rich_text_editor.gzip";
 export const VIEWER_PREFIX = "/viewer/rich_text/rich_text_viewer";
 
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css"]);
 
-export async function downloadRichTextEditor() {
+export function versionNumber(value) {
+  const number = Number.parseInt(String(value ?? "").trim(), 10);
+  return Number.isFinite(number) && number > 0 ? number : 0;
+}
+
+export async function downloadRichTextEditor(localVersion = 0) {
+  const remote = await remoteEditorVersion();
+  const local = versionNumber(localVersion);
+  if (remote <= local) {
+    return {
+      files: null,
+      report: {
+        ok: true,
+        skipped: true,
+        version: String(local),
+        remote: String(remote),
+      },
+    };
+  }
+
   const response = await fetch(EDITOR_GZIP_URL, { cache: "no-store" });
   if (!response.ok) throw new Error("The editor download was not available (" + response.status + ").");
   const packed = new Uint8Array(await response.arrayBuffer());
@@ -18,6 +37,14 @@ export async function downloadRichTextEditor() {
     await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(),
   );
   return prepareEditor(readTar(tarBytes));
+}
+
+async function remoteEditorVersion() {
+  const response = await fetch(EDITOR_VERSION_URL, { cache: "no-store" });
+  if (!response.ok) throw new Error("The editor version was not available (" + response.status + ").");
+  const version = versionNumber(await response.text());
+  if (!version) throw new Error("The editor version file is empty.");
+  return version;
 }
 
 export function prepareEditor(rawFiles) {

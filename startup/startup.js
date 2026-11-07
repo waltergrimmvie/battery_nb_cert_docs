@@ -7,7 +7,7 @@ const { populateMenu } = await import(`../menu_bar/populate/populate.js${stamp}`
 const { connectDesk } = await import(`./desk.js${stamp}`);
 
 // Procedures this desk calls, in order:
-// 1. refreshEditor()        server downloads the newest editor gzip into the viewer
+// 1. refreshEditor()        server checks version.txt and downloads a newer gzip
 // 2. readIndexedName()      IndexedDB. Skip login when the name is already there.
 // 3. showLogin()            setup/login_user.js. Dropdown only, then Enter.
 // 4. saveIndexedName()
@@ -51,7 +51,7 @@ async function start() {
 }
 
 async function refreshEditor() {
-  root.textContent = "Fetching the newest editor…";
+  root.textContent = "Checking the editor…";
   const response = await fetch("/editor/refresh", { method: "POST", cache: "no-store" });
   const report = await response.json().catch(() => null);
   if (!response.ok || !report?.ok) {
