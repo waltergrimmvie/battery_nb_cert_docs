@@ -1,4 +1,3 @@
-import { readDocx } from "./read_docx.js";
 
 export function constructMainPage(root) {
   root.replaceChildren();
@@ -134,44 +133,15 @@ function showIntro(content) {
 
 function showDocument(content, directory, file) {
   content.replaceChildren();
-  const article = document.createElement("article");
-  article.className = "note";
-  const kicker = document.createElement("p");
-  kicker.className = "kicker";
-  kicker.textContent = directory;
-  const heading = document.createElement("h1");
-  heading.className = "doc-title";
-  heading.textContent = fileLabel(file);
-  const copy = document.createElement("p");
-  copy.textContent = "Opening the document…";
-  const link = document.createElement("a");
-  link.className = "doc-link";
-  link.href = documentUrl(directory, file);
-  link.textContent = "Open the Word file";
-  article.append(kicker, heading, copy, link);
-  content.append(article);
-
-  readDocx(link.href)
-    .then((paragraphs) => {
-      copy.remove();
-      const body = document.createElement("div");
-      body.className = "doc-body";
-      if (paragraphs.length === 0) {
-        const empty = document.createElement("p");
-        empty.textContent = "This document has no text.";
-        body.append(empty);
-      } else {
-        for (const paragraph of paragraphs) {
-          const line = document.createElement("p");
-          line.textContent = paragraph;
-          body.append(line);
-        }
-      }
-      article.insertBefore(body, link);
-    })
-    .catch(() => {
-      copy.textContent = "The document is stored, but its text could not be shown. Open the Word file instead.";
-    });
+  const viewer = document.createElement("div");
+  viewer.className = "rich-text-viewer";
+  const frame = document.createElement("iframe");
+  frame.className = "rich-text-frame";
+  frame.title = fileLabel(file);
+  const page = "/viewer/rich_text/rich_text_viewer/index.html";
+  frame.src = page + "?src=" + encodeURIComponent(documentUrl(directory, file));
+  viewer.append(frame);
+  content.append(viewer);
 }
 
 function documentUrl(directory, file) {
