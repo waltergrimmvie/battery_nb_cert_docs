@@ -1,0 +1,58 @@
+# Word font, substitute file, size factor
+# factor = Word weighted Latin average / WOFF weighted Latin average
+# The same weights Word uses for xAvgCharWidth: a–z plus space.
+# HTML point size = Word point size × factor
+# Word point size = HTML point size / factor
+# The screen still shows the Word name. The WOFF is only the file behind it.
+# 1.000 means no published Word average was available, so the size is left as it is.
+Word	Substitute	Factor
+Calibri	Carlito	1.004
+Calibri Light	Carlito	1.004
+Cambria	Caladea	1.003
+Cambria Math	Caladea	1.003
+Arial	Arimo	1.000
+Arial Narrow	Liberation Sans Narrow	1.000
+Arial Black	Archivo Black	1.000
+Helvetica	Arimo	1.010
+Times New Roman	Tinos	1.012
+Georgia	Gelasio	1.012
+Verdana	DejaVu Sans	1.010
+Tahoma	Noto Sans	0.948
+Trebuchet MS	Fira Sans	0.994
+Courier New	Liberation Mono	1.000
+Comic Sans MS	Comic Neue	1.000
+Impact	Anton	1.000
+Century Gothic	Questrial	1.000
+Franklin Gothic Medium	Libre Franklin	1.000
+Garamond	EB Garamond	1.000
+Palatino Linotype	Libre Baskerville	1.000
+Book Antiqua	Libre Baskerville	1.000
+Lucida Sans Unicode	Lato	1.000
+Lucida Console	Inconsolata	1.000
+Segoe UI	Source Sans 3	1.063
+Consolas	JetBrains Mono	1.000
+Candara	Figtree	1.000
+Corbel	Nunito Sans	1.000
+Constantia	Literata	1.000
+Aptos	Outfit	1.000
+Bahnschrift	Oswald	1.000
+Century Schoolbook	Merriweather	1.000
+Goudy Old Style	Sorts Mill Goudy	1.000
+Bookman Old Style	DejaVu Serif	1.000
+SimSun	SimSun	1.000
+Sitka Text	Cardo	1.000
+Rockwell	IBM Plex Serif	1.000
+Gill Sans MT	Cabin	1.000
+Tw Cen MT	Josefin Sans	1.000
+Copperplate Gothic	Exo 2	1.000
+Nirmala UI	Inter	1.000
+Malgun Gothic	IBM Plex Sans	1.000
+Leelawadee UI	Karla	1.000
+Ebrima	Barlow	1.000
+Cascadia Mono	IBM Plex Mono	0.977
+Cascadia Code	Cousine	0.976
+Bodoni MT	Cormorant Garamond	1.000
+Perpetua	Libre Caslon Text	1.000
+MS Reference Sans Serif	FreeSans	1.000
+MS Reference Serif	FreeSerif	1.000
+Yu Gothic	Hind	1.000
