@@ -9,7 +9,7 @@ const files = [
   "startup/desk.js",
   "setup/login_user.js",
   "main_page/construct_main_page.js",
-  "main_page/demo_tree.js",
+  "main_page/read_docx.js",
   "menu_bar/construct_design/construct_design.js",
   "menu_bar/online_users.js",
   "menu_bar/populate/populate.js",

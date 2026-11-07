@@ -49,11 +49,11 @@ the desk. Each person keeps the red / green toggle.
 
 Tree and content
 ----------------
-The tree is a demo:
-- five root nodes
-- each root has six or seven child nodes
-Clicking a child shows demo text in the content container.
-Clicking a root only opens or closes its children.
+The tree is read from the documents directory.
+- Each directory is a top-level node, using the directory name.
+- Each Word document in that directory is a child node.
+Clicking a document opens its text in the content container.
+Clicking a directory only opens or closes its documents.
 
 Desk
 ----

@@ -355,6 +355,8 @@ select:focus, button:focus-visible, .slider:focus-visible {
   border-radius: 8px;
   padding: 8px 10px;
   min-height: 40px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .tree-root {
@@ -422,9 +424,20 @@ select:focus, button:focus-visible, .slider:focus-visible {
 
 .note h1 { margin-top: 8px; }
 
+.note h1.doc-title { font-size: clamp(22px, 3vw, 32px); }
+
 .note p { margin: 14px 0 0; color: var(--ink); }
 
-.boot-error { padding: 24px; }
+.doc-body p { margin: 0 0 10px; }
+
+.doc-link {
+  display: inline-block;
+  margin-top: 18px;
+  color: var(--brass);
+  font-weight: 600;
+}
+
+.tree-status, .boot-error { padding: 0 10px; color: var(--muted); }
 
 .workspace.stacked { flex-direction: column; }
 

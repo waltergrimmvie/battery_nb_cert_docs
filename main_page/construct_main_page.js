@@ -1,4 +1,4 @@
-import { DEMO_TREE, demoCopy } from "./demo_tree.js";
+import { readDocx } from "./read_docx.js";
 
 export function constructMainPage(root) {
   root.replaceChildren();
@@ -46,41 +46,64 @@ function renderTree(tree, content) {
   label.className = "tree-label";
   label.textContent = "Tree";
 
+  const status = document.createElement("p");
+  status.className = "tree-status";
+  status.textContent = "Reading the documents…";
+
   const nav = document.createElement("nav");
-  for (const rootNode of DEMO_TREE) {
+  tree.append(label, status, nav);
+  showIntro(content);
+
+  fetch("/documents/index.json")
+    .then((response) => {
+      if (!response.ok) throw new Error("The document list could not be read.");
+      return response.json();
+    })
+    .then((directories) => {
+      status.remove();
+      fillTree(nav, tree, content, directories);
+    })
+    .catch(() => {
+      status.textContent = "The document folders could not be read.";
+    });
+}
+
+function fillTree(nav, tree, content, directories) {
+  for (const directory of directories) {
     const group = document.createElement("div");
     group.className = "tree-group";
 
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "tree-root";
-    toggle.setAttribute("aria-expanded", "true");
+    toggle.setAttribute("aria-expanded", "false");
     const chev = document.createElement("span");
     chev.className = "chev";
     chev.setAttribute("aria-hidden", "true");
     const text = document.createElement("span");
-    text.textContent = rootNode.label;
+    text.textContent = directory.name;
     toggle.append(chev, text);
 
     const kids = document.createElement("div");
     kids.className = "tree-children";
+    kids.hidden = true;
     toggle.addEventListener("click", () => {
       const open = toggle.getAttribute("aria-expanded") !== "true";
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
       kids.hidden = !open;
     });
 
-    for (const child of rootNode.children) {
+    for (const file of directory.files) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "tree-child";
-      button.textContent = child.label;
+      button.textContent = fileLabel(file);
       button.addEventListener("click", () => {
         for (const current of tree.querySelectorAll(".tree-child[aria-current='true']")) {
           current.removeAttribute("aria-current");
         }
         button.setAttribute("aria-current", "true");
-        showDemo(content, rootNode, child);
+        showDocument(content, directory.name, file);
       });
       kids.append(button);
     }
@@ -88,8 +111,10 @@ function renderTree(tree, content) {
     group.append(toggle, kids);
     nav.append(group);
   }
+}
 
-  tree.append(label, nav);
+function fileLabel(file) {
+  return file.replace(/\.docx$/i, "");
 }
 
 function showIntro(content) {
@@ -100,26 +125,57 @@ function showIntro(content) {
   kicker.className = "kicker";
   kicker.textContent = "Content";
   const heading = document.createElement("h1");
-  heading.textContent = "Choose a child node";
+  heading.textContent = "Choose a document";
   const copy = document.createElement("p");
-  copy.textContent = "The tree is a demo. Select a child and its note opens in this pane.";
+  copy.textContent = "The folders in the tree are the document directories. Open one and choose a document.";
   article.append(kicker, heading, copy);
   content.append(article);
 }
 
-function showDemo(content, rootNode, child) {
+function showDocument(content, directory, file) {
   content.replaceChildren();
   const article = document.createElement("article");
   article.className = "note";
   const kicker = document.createElement("p");
   kicker.className = "kicker";
-  kicker.textContent = rootNode.label;
+  kicker.textContent = directory;
   const heading = document.createElement("h1");
-  heading.textContent = child.label;
+  heading.className = "doc-title";
+  heading.textContent = fileLabel(file);
   const copy = document.createElement("p");
-  copy.textContent = demoCopy(rootNode, child);
-  article.append(kicker, heading, copy);
+  copy.textContent = "Opening the document…";
+  const link = document.createElement("a");
+  link.className = "doc-link";
+  link.href = documentUrl(directory, file);
+  link.textContent = "Open the Word file";
+  article.append(kicker, heading, copy, link);
   content.append(article);
+
+  readDocx(link.href)
+    .then((paragraphs) => {
+      copy.remove();
+      const body = document.createElement("div");
+      body.className = "doc-body";
+      if (paragraphs.length === 0) {
+        const empty = document.createElement("p");
+        empty.textContent = "This document has no text.";
+        body.append(empty);
+      } else {
+        for (const paragraph of paragraphs) {
+          const line = document.createElement("p");
+          line.textContent = paragraph;
+          body.append(line);
+        }
+      }
+      article.insertBefore(body, link);
+    })
+    .catch(() => {
+      copy.textContent = "The document is stored, but its text could not be shown. Open the Word file instead.";
+    });
+}
+
+function documentUrl(directory, file) {
+  return `/documents/${encodeURIComponent(directory)}/${encodeURIComponent(file)}`;
 }
 
 function attachSlider(slider, tree, workspace) {

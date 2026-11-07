@@ -27,8 +27,9 @@ The first design draft is [grok_rules.txt](grok_rules.txt).
 | --- | --- |
 | [startup/startup.js](startup/startup.js) | Boot: IndexedDB, then login or main page |
 | [setup/login_user.js](setup/login_user.js) | Name dropdown and Enter |
-| [main_page/construct_main_page.js](main_page/construct_main_page.js) | Menu bar, tree, slider, content |
-| [main_page/demo_tree.js](main_page/demo_tree.js) | Five demo roots |
+| [documents/](documents/) | The eight Word-document directories, also published for the Worker |
+| [main_page/construct_main_page.js](main_page/construct_main_page.js) | Menu bar, document tree, slider, content |
+| [main_page/read_docx.js](main_page/read_docx.js) | Reads a stored Word file into the content pane |
 | [menu_bar/construct_design/construct_design.js](menu_bar/construct_design/construct_design.js) | Three-heads icon, online count, and mega menu shell |
 | [menu_bar/online_users.js](menu_bar/online_users.js) | Array of users currently online |
 | [menu_bar/populate/populate.js](menu_bar/populate/populate.js) | People currently logged in |

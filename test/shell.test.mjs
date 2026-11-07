@@ -3,21 +3,36 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { DEMO_TREE, demoCopy } from "../main_page/demo_tree.js";
 import { KNOWN_NAMES } from "../setup/login_user.js";
 import { browserFiles } from "../src/browser-files.js";
 import { setOnlineUsers, getOnlineUsers, watchOnlineUsers } from "../menu_bar/online_users.js";
+import { docxToParagraphs } from "../main_page/read_docx.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-test("demo tree has five roots and six or seven children each", () => {
-  assert.equal(DEMO_TREE.length, 5);
-  for (const node of DEMO_TREE) {
-    assert.ok(node.children.length === 6 || node.children.length === 7, node.label);
-    const copy = demoCopy(node, node.children[0]);
-    assert.match(copy, new RegExp(node.children[0].label));
-    assert.match(copy, new RegExp(node.label.replace(/[()]/g, "\\$&")));
+test("document directories are the tree and each Word file is a child", async () => {
+  const index = JSON.parse(readFileSync(join(root, "documents/index.json"), "utf8"));
+  assert.deepEqual(index.map((directory) => directory.name), [
+    "01_Legal_Contractual_Matters",
+    "02_Impartiality_Supply_Chain_Risks",
+    "03_Financial_Liability_Resources",
+    "04_Structural_Impartiality_Mechanism",
+    "05_Personnel_Competence_Training",
+    "06_Technical_Evaluation_Process",
+    "07_Surveillance_Changes_Withdrawal",
+    "08_Management_System_Improvement",
+  ]);
+  for (const directory of index) {
+    assert.ok(directory.files.length > 0, directory.name);
+    assert.ok(directory.files.every((file) => file.endsWith(".docx")));
+    const published = readFileSync(join(root, "public/documents", directory.name, directory.files[0]));
+    assert.ok(published.length > 1000);
   }
+  const first = index[0];
+  const bytes = readFileSync(join(root, "documents", first.name, first.files[0]));
+  const paragraphs = await docxToParagraphs(bytes);
+  assert.match(paragraphs.join("\n"), /Verification Point 001/);
+  assert.match(paragraphs.join("\n"), /Legal & Contractual Matters/);
 });
 
 test("login offers the desk names and no typed name", () => {
@@ -44,7 +59,7 @@ test("worker serves the same modules startup calls", () => {
     "/startup/desk.js",
     "/setup/login_user.js",
     "/main_page/construct_main_page.js",
-    "/main_page/demo_tree.js",
+    "/main_page/read_docx.js",
     "/menu_bar/construct_design/construct_design.js",
     "/menu_bar/online_users.js",
     "/menu_bar/populate/populate.js",
