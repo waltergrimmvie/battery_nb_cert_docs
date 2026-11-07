@@ -214,9 +214,13 @@ function readParagraph(node, ctx) {
   if (numPr?.localName === "numPr" || numPr?.id) {
     const listId = numPr.id || attr(first(numPr, "numId"), "val") || "1";
     const level = numPr.level ?? num(attr(first(numPr, "ilvl"), "val"), 0);
-    props.list = { id: listId, level };
-    if (!ctx.lists[listId]) ctx.lists[listId] = { levels: [{ format: "bullet", text: "●", indent: 720, hanging: 360 }] };
+    props.list = { id: listId, level, size: 0.6, align: "middle" };
+    if (!ctx.lists[listId]) ctx.lists[listId] = { levels: [{ format: "bullet", text: "●", indent: 720, hanging: 360, size: 0.6, align: "middle" }] };
     const listLevel = ctx.lists[listId]?.levels?.[level];
+    if (listLevel) {
+      listLevel.size = 0.6;
+      listLevel.align = "middle";
+    }
     if (listLevel && !props.indent) props.indent = { left: listLevel.indent || 720, first: -(listLevel.hanging || 360) };
     if (listLevel) props.marker = listLevel.text || (listLevel.format === "bullet" ? "☐" : "");
   }
@@ -244,7 +248,11 @@ function readParagraph(node, ctx) {
   const breakBeforeEl = first(pPr, "pageBreakBefore");
   const breakBefore = Boolean(breakBeforeEl) && !["0", "false", "off"].includes(attr(breakBeforeEl, "val"));
   const visible = runs.filter((run) => run.type !== "break" || run.text !== "page");
-  const paragraph = { id: take("p"), type: "paragraph", style: attr(first(pPr, "pStyle"), "val") || "Normal", props, runs: visible };
+  const styleName = attr(first(pPr, "pStyle"), "val") || "Normal";
+  const styleDef = ctx.styles?.styles?.[styleName];
+  if (flagOn(first(pPr, "keepNext")) || styleDef?.keepNext) props.keepNext = true;
+  if (flagOn(first(pPr, "keepLines")) || styleDef?.keepLines) props.keepLines = true;
+  const paragraph = { id: take("p"), type: "paragraph", style: styleName, props, runs: visible };
   for (const mark of ctx.bookmarks) if (!mark.anchor) mark.anchor = paragraph.id;
   const out = [];
   if (pageBreak || breakBefore) out.push({ id: take("k"), type: "pageBreak" });
@@ -260,7 +268,7 @@ function readRun(child, runs, extras, ctx, href = "", revision) {
   if (revision) look.revision = revision;
   if (href) look.href = href;
   const br = first(child, "br");
-  if (attr(br, "type") === "page") {
+  if (attr(br, "type") === "page" && !children(child, "t").length) {
     runs.push({ id: take("r"), type: "break", text: "page" });
     return;
   }
@@ -273,8 +281,12 @@ function readRun(child, runs, extras, ctx, href = "", revision) {
   if (end && ctx.endnotes[attr(end, "id")]) runs.push({ id: take("r"), type: "field", field: "ENDNOTE", footnote: ctx.endnotes[attr(end, "id")].id, text: "†", ...look });
   const comment = first(child, "commentReference");
   if (comment && ctx.comments[attr(comment, "id")]) runs.push({ id: take("r"), type: "field", field: "COMMENT", text: ctx.comments[attr(comment, "id")].text, ...look });
-  const text = children(child, "t").map((el) => el.textContent ?? "").join("");
-  if (text) runs.push({ id: take("r"), type: "text", text, ...look });
+  let buffer = "";
+  for (const el of child.children) {
+    if (el.localName === "br" && attr(el, "type") !== "page") buffer += "\n";
+    if (el.localName === "t" || el.localName === "delText") buffer += el.textContent ?? "";
+  }
+  if (buffer) runs.push({ id: take("r"), type: "text", text: buffer, ...look });
   const frame = all(child).find((el) => el.localName === "anchor" || el.localName === "inline");
   const layout = readLayout(frame);
   const blip = all(child).find((el) => el.localName === "blip");
@@ -349,21 +361,47 @@ function readRunProps(node) {
 
 function readTable(node, ctx) {
   const grid = all(node).filter((el) => el.parentElement?.localName === "tblGrid" && el.localName === "gridCol").map((el) => num(attr(el, "w"), 2000));
+  const styleId = attr(first(first(node, "tblPr"), "tblStyle"), "val") || "";
+  const borders = readEdges(first(first(node, "tblPr"), "tblBorders")) || ctx.styles?.tables?.[styleId] || { val: "single", sz: 4, color: "000000" };
   const rows = children(node, "tr").map((tr, rowIndex) => ({
     id: ctx.take("w"),
     header: rowIndex === 0,
-    cells: children(tr, "tc").map((tc) => {
+    cells: children(tr, "tc").map((tc, col) => {
       const span = num(attr(first(first(tc, "tcPr"), "gridSpan"), "val"), 1);
       const shading = attr(first(first(tc, "tcPr"), "shd"), "fill");
-      const borders = first(first(tc, "tcPr"), "tcBorders") ? "yes" : "";
+      const width = num(attr(first(first(tc, "tcPr"), "tcW"), "w"), grid[col] || 0);
       const blocks = [];
       for (const child of tc.children) if (child.localName === "p") blocks.push(...readParagraph(child, ctx).filter((block) => block.type === "paragraph"));
-      return { id: ctx.take("c"), span: span > 1 ? span : undefined, shading: shading && shading !== "auto" ? "#" + shading : undefined, borders, blocks };
+      return { id: ctx.take("c"), span: span > 1 ? span : undefined, shading: shading && shading !== "auto" ? "#" + shading : undefined, w: width || undefined, blocks };
     }),
   }));
-  return { id: ctx.take("t"), type: "table", grid, rows };
+  return { id: ctx.take("t"), type: "table", style: styleId || undefined, grid, borders, rows };
 }
 
+function flagOn(el) {
+  if (!el) return false;
+  const val = attr(el, "val");
+  return val !== "0" && val !== "false" && val !== "off";
+}
+
+function paperOf(w, h) {
+  const score = (a, b) => Math.abs(w - a) + Math.abs(h - b);
+  const letter = Math.min(score(12240, 15840), score(15840, 12240));
+  const a4 = Math.min(score(11906, 16838), score(16838, 11906));
+  return letter < a4 ? "Letter" : "A4";
+}
+
+function readEdges(borders) {
+  if (!borders) return null;
+  const edge = first(borders, "top") || first(borders, "insideH") || first(borders, "left");
+  if (!edge) return null;
+  const color = attr(edge, "color");
+  return {
+    val: attr(edge, "val") || "single",
+    sz: num(attr(edge, "sz"), 4),
+    color: color && color !== "auto" ? color : "000000",
+  };
+}
 function readSection(sect) {
   const sz = first(sect, "pgSz");
   const mar = first(sect, "pgMar");
@@ -372,6 +410,7 @@ function readSection(sect) {
   return {
     w, h,
     orient: attr(sz, "orient") === "landscape" || w > h ? "landscape" : "portrait",
+    paper: paperOf(w, h),
     margin: {
       top: num(attr(mar, "top"), 1440),
       right: num(attr(mar, "right"), 1440),
@@ -384,7 +423,7 @@ function readSection(sect) {
 }
 
 function readStyles(xml) {
-  if (!xml) return { styles: { Normal: { font: "Calibri", size: 11 } }, lists: {}, defaults: { font: "Calibri", size: 11 } };
+  if (!xml) return { styles: { Normal: { font: "Calibri", size: 11 } }, lists: {}, defaults: { font: "Calibri", size: 11 }, tables: {} };
   const dom = parseXml(xml);
   const defaults = all(dom).find((el) => el.localName === "rPrDefault");
   const dPr = first(defaults, "rPr");
@@ -413,6 +452,8 @@ function readStyles(xml) {
       spaceAfter: num(attr(spacing, "after"), 0) || prev.spaceAfter,
       line: lineVal > 0 ? (rule === "exact" || rule === "atLeast" ? lineVal / 20 : lineVal / 240) : prev.line,
       lineRule: lineVal > 0 && rule !== "auto" ? rule : prev.lineRule,
+      keepNext: flagOn(first(pPr, "keepNext")) || prev.keepNext || undefined,
+      keepLines: flagOn(first(pPr, "keepLines")) || prev.keepLines || undefined,
     };
     if (numPr) lists[name] = { id: attr(first(numPr, "numId"), "val") || "1", level: num(attr(first(numPr, "ilvl"), "val"), 0) };
   }
@@ -421,7 +462,17 @@ function readStyles(xml) {
     if (!styles.Normal.font) styles.Normal.font = dFont;
     if (!(styles.Normal.size > 0)) styles.Normal.size = dSize;
   }
-  return { styles, lists, defaults: { font: styles.Normal.font || dFont, size: styles.Normal.size || dSize } };
+  return { styles, lists, defaults: { font: styles.Normal.font || dFont, size: styles.Normal.size || dSize }, tables: readTableStyles(dom) };
+}
+
+function readTableStyles(dom) {
+  const tables = {};
+  for (const style of all(dom).filter((el) => el.localName === "style" && attr(el, "type") === "table")) {
+    const id = attr(style, "styleId");
+    if (!id) continue;
+    tables[id] = readEdges(first(first(style, "tblPr"), "tblBorders"));
+  }
+  return tables;
 }
 
 function headingLevel(paragraph) {
@@ -491,6 +542,8 @@ function readLists(xml) {
         text: attr(first(lvl, "lvlText"), "val"),
         indent: num(attr(all(lvl).find((el) => el.localName === "ind"), "left"), 720),
         hanging: num(attr(all(lvl).find((el) => el.localName === "ind"), "hanging"), 360),
+        size: 0.6,
+        align: "middle",
         restart: num(attr(first(lvl, "start"), "val"), 1),
         legal: attr(first(lvl, "isLgl"), "val") === "1" || Boolean(first(lvl, "isLgl")),
       })),

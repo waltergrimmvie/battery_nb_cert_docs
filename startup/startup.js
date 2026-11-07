@@ -7,7 +7,7 @@ const { populateMenu } = await import(`../menu_bar/populate/populate.js${stamp}`
 const { connectDesk } = await import(`./desk.js${stamp}`);
 
 // Procedures this desk calls, in order:
-// 1. refreshEditor()        server checks version.txt and downloads a newer gzip
+// 1. refreshEditor()        confirms the gzip installed before this page was sent
 // 2. readIndexedName()      IndexedDB. Skip login when the name is already there.
 // 3. showLogin()            setup/login_user.js. Dropdown only, then Enter.
 // 4. saveIndexedName()

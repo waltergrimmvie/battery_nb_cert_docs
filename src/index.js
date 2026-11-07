@@ -31,6 +31,8 @@ const FILE_TYPE = {
 
 let editorFiles = new Map();
 let savedEditorVersion = 0;
+let editorReady = false;
+let installing = null;
 
 function editorFile(pathname) {
   if (!pathname.startsWith(VIEWER_PREFIX + "/")) return null;
@@ -48,6 +50,27 @@ async function localEditorVersion(env) {
   return savedEditorVersion;
 }
 
+// Compare version_text_editor.txt with the text editor site. A newer gzip
+// replaces the viewer in this worker before any page is returned.
+async function ensureEditor(env) {
+  if (!installing) {
+    const job = (async () => {
+      const pack = await downloadRichTextEditor(await localEditorVersion(env));
+      if (!pack.report.skipped && pack.files) {
+        editorFiles = pack.files;
+        savedEditorVersion = versionNumber(pack.report.version);
+      }
+      editorReady = true;
+      return pack.report;
+    })();
+    installing = job;
+    job.finally(() => {
+      if (installing === job) installing = null;
+    });
+  }
+  return installing;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -59,19 +82,22 @@ export default {
       return env.PRESENCE.get(id).fetch(request);
     }
 
-    if (url.pathname === "/editor/refresh") {
+    const isPage = url.pathname === "/" || url.pathname === "/index.html";
+    const isRefresh = url.pathname === "/editor/refresh";
+    const isViewer = url.pathname.startsWith(VIEWER_PREFIX + "/");
+    if (isPage || isRefresh || (isViewer && !editorReady)) {
       try {
-        const pack = await downloadRichTextEditor(await localEditorVersion(env));
-        if (!pack.report.skipped) {
-          editorFiles = pack.files;
-          savedEditorVersion = versionNumber(pack.report.version);
-        }
-        return Response.json(pack.report, { headers: NO_STORE });
+        const report = await ensureEditor(env);
+        if (isRefresh) return Response.json(report, { headers: NO_STORE });
       } catch (error) {
-        return Response.json(
-          { ok: false, error: error instanceof Error ? error.message : "Download failed." },
-          { status: 502, headers: NO_STORE },
-        );
+        const message = error instanceof Error ? error.message : "Download failed.";
+        if (isRefresh) {
+          return Response.json({ ok: false, error: message }, { status: 502, headers: NO_STORE });
+        }
+        return new Response(message, {
+          status: 502,
+          headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE },
+        });
       }
     }
 
