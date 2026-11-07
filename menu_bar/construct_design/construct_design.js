@@ -35,7 +35,7 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
   const version = document.createElement("p");
   version.className = "version";
   version.textContent = "ver:";
-  fetch("/version.txt", { cache: "no-store" })
+  fetch("/editor_version.txt", { cache: "no-store" })
     .then((response) => (response.ok ? response.text() : ""))
     .then((text) => {
       const number = text.trim();
