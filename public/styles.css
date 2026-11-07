@@ -151,6 +151,13 @@ select:focus, button:focus-visible, .slider:focus-visible {
 .status.live { color: var(--green); }
 .status.down { color: var(--red); }
 
+.version {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .menu-cluster {
   margin-left: auto;
   display: flex;

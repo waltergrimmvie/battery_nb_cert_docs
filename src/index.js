@@ -3,9 +3,15 @@ import { browserFiles } from "./browser-files.js";
 
 export { PresenceRoom };
 
+const NO_STORE = {
+  "cache-control": "no-store, no-cache, must-revalidate, max-age=0",
+  pragma: "no-cache",
+  expires: "0",
+};
+
 const MODULE_HEADER = {
   "content-type": "text/javascript; charset=utf-8",
-  "cache-control": "no-cache",
+  ...NO_STORE,
 };
 
 export default {
@@ -24,6 +30,10 @@ export default {
       return new Response(moduleSource, { headers: MODULE_HEADER });
     }
 
-    return env.ASSETS.fetch(request);
+    return env.ASSETS.fetch(request).then((response) => {
+      const headers = new Headers(response.headers);
+      for (const [key, value] of Object.entries(NO_STORE)) headers.set(key, value);
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    });
   },
 };

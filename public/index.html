@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Battery NB Cert Desk</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -12,6 +15,15 @@
 </head>
 <body>
   <div id="app">Loading the desk…</div>
-  <script type="module" src="/startup/startup.js"></script>
+  <script>
+    fetch("/version.txt", { cache: "no-store" }).then(function (response) {
+      return response.ok ? response.text() : "0";
+    }).then(function (version) {
+      var script = document.createElement("script");
+      script.type = "module";
+      script.src = "/startup/startup.js?v=" + encodeURIComponent(String(version).trim() || "0");
+      document.body.appendChild(script);
+    });
+  </script>
 </body>
 </html>

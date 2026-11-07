@@ -1,9 +1,10 @@
-import { KNOWN_NAMES, showLogin } from "../setup/login_user.js";
-import { constructMainPage } from "../main_page/construct_main_page.js";
-import { constructMenuDesign } from "../menu_bar/construct_design/construct_design.js";
-import { setOnlineUsers } from "../menu_bar/online_users.js";
-import { populateMenu } from "../menu_bar/populate/populate.js";
-import { connectDesk } from "./desk.js";
+const stamp = new URL(import.meta.url).search;
+const { KNOWN_NAMES, showLogin } = await import(`../setup/login_user.js${stamp}`);
+const { constructMainPage } = await import(`../main_page/construct_main_page.js${stamp}`);
+const { constructMenuDesign } = await import(`../menu_bar/construct_design/construct_design.js${stamp}`);
+const { setOnlineUsers } = await import(`../menu_bar/online_users.js${stamp}`);
+const { populateMenu } = await import(`../menu_bar/populate/populate.js${stamp}`);
+const { connectDesk } = await import(`./desk.js${stamp}`);
 
 // Procedures this desk calls, in order:
 // 1. readIndexedName()      IndexedDB. Skip login when the name is already there.

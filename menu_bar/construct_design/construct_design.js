@@ -1,4 +1,5 @@
-import { watchOnlineUsers } from "../online_users.js";
+const stamp = new URL(import.meta.url).search;
+const { watchOnlineUsers } = await import(`../online_users.js${stamp}`);
 
 const HEADS_SVG = `<svg class="heads-svg" viewBox="0 0 48 32" aria-hidden="true" focusable="false">
   <g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -30,6 +31,17 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
   const status = document.createElement("p");
   status.className = "status";
   status.textContent = "Connecting";
+
+  const version = document.createElement("p");
+  version.className = "version";
+  version.textContent = "ver:";
+  fetch("/version.txt", { cache: "no-store" })
+    .then((response) => (response.ok ? response.text() : ""))
+    .then((text) => {
+      const number = text.trim();
+      if (number) version.textContent = "ver: " + number;
+    })
+    .catch(() => {});
 
   const field = document.createElement("div");
   field.className = "signed-field";
@@ -94,7 +106,7 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
   cluster.className = "menu-cluster";
   cluster.append(field, anchor);
 
-  bar.append(brand, status, cluster);
+  bar.append(brand, status, version, cluster);
   menuBar.append(bar);
 
   function setOpen(open) {

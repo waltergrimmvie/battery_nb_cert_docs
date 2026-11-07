@@ -138,10 +138,19 @@ function showDocument(content, directory, file) {
   const frame = document.createElement("iframe");
   frame.className = "rich-text-frame";
   frame.title = fileLabel(file);
-  const page = "/viewer/rich_text/rich_text_viewer/index.html";
-  frame.src = page + "?src=" + encodeURIComponent(documentUrl(directory, file));
   viewer.append(frame);
   content.append(viewer);
+
+  const page = "/viewer/rich_text/rich_text_viewer/index.html";
+  const src = documentUrl(directory, file);
+  fetch("/version.txt", { cache: "no-store" })
+    .then((response) => (response.ok ? response.text() : ""))
+    .then((text) => {
+      frame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&src=" + encodeURIComponent(src);
+    })
+    .catch(() => {
+      frame.src = page + "?src=" + encodeURIComponent(src);
+    });
 }
 
 function documentUrl(directory, file) {
