@@ -131,26 +131,45 @@ function showIntro(content) {
   content.append(article);
 }
 
-function showDocument(content, directory, file) {
-  content.replaceChildren();
-  const viewer = document.createElement("div");
-  viewer.className = "rich-text-viewer";
-  const frame = document.createElement("iframe");
-  frame.className = "rich-text-frame";
-  frame.title = fileLabel(file);
-  viewer.append(frame);
-  content.append(viewer);
+let viewerFrame = null;
+let viewerReady = Promise.resolve();
 
-  const page = "/viewer/rich_text/rich_text_viewer/index.html";
+function showDocument(content, directory, file) {
   const src = documentUrl(directory, file);
-  fetch("/version.txt", { cache: "no-store" })
-    .then((response) => (response.ok ? response.text() : ""))
-    .then((text) => {
-      frame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&src=" + encodeURIComponent(src);
-    })
-    .catch(() => {
-      frame.src = page + "?src=" + encodeURIComponent(src);
+  const title = fileLabel(file);
+  if (!viewerFrame || !viewerFrame.isConnected) {
+    content.replaceChildren();
+    const viewer = document.createElement("div");
+    viewer.className = "rich-text-viewer";
+    viewerFrame = document.createElement("iframe");
+    viewerFrame.className = "rich-text-frame";
+    viewerFrame.title = title;
+    viewer.append(viewerFrame);
+    content.append(viewer);
+    viewerFrame.dataset.src = src;
+    viewerReady = new Promise((resolve) => {
+      viewerFrame.addEventListener("load", () => {
+        const ready = viewerFrame.contentWindow.editorReady;
+        if (ready && typeof ready.then === "function") ready.then(resolve);
+        else resolve();
+      }, { once: true });
     });
+    const page = "/viewer/rich_text/rich_text_viewer/index.html";
+    fetch("/version.txt", { cache: "no-store" })
+      .then((response) => (response.ok ? response.text() : ""))
+      .then((text) => {
+        viewerFrame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&src=" + encodeURIComponent(src);
+      })
+      .catch(() => {
+        viewerFrame.src = page + "?src=" + encodeURIComponent(src);
+      });
+    return;
+  }
+
+  viewerFrame.title = title;
+  if (viewerFrame.dataset.src === src) return;
+  viewerFrame.dataset.src = src;
+  viewerReady = viewerReady.then(() => viewerFrame.contentWindow.populate(src));
 }
 
 function documentUrl(directory, file) {
