@@ -5,8 +5,8 @@ import { versionNumber } from "./refresh_editor.mjs";
 
 export { versionNumber };
 
-export const PPT_VERSION_URL = "https://presentation.dev-qprox.com/version.txt";
-export const PPT_GZIP_URL = "https://presentation.dev-qprox.com/Download/powerpoint_viewer.gzip";
+export const PPT_VERSION_URL = "https://presentation.dev-q-prox.com/version.txt";
+export const PPT_GZIP_URL = "https://presentation.dev-q-prox.com/Download/powerpoint_viewer.gzip";
 export const PPT_PREFIX = "/viewer/powerpoint/powerpoint_viewer";
 
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
