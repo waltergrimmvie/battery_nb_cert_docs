@@ -13,7 +13,10 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 test("document directories are the tree and each Word file is a child", async () => {
   const index = JSON.parse(readFileSync(join(root, "documents/index.json"), "utf8"));
   assert.equal(index[0].name, "General Documents");
-  assert.deepEqual(index[0].files, ["EU Battery Line Checklist.docx"]);
+  assert.deepEqual(index[0].files, [
+    "EU Battery Line Checklist.docx",
+    "EU_Battery_17065_Detailed_Checklist_v5_Compressed.xlsx",
+  ]);
   assert.deepEqual(index.slice(1).map((directory) => directory.name), [
     "01_Legal_Contractual_Matters",
     "02_Impartiality_Supply_Chain_Risks",
@@ -26,7 +29,7 @@ test("document directories are the tree and each Word file is a child", async ()
   ]);
   for (const directory of index) {
     assert.ok(directory.files.length > 0, directory.name);
-    assert.ok(directory.files.every((file) => file.endsWith(".docx")));
+    assert.ok(directory.files.every((file) => /\.(docx|xlsx|xls)$/i.test(file)));
     const published = readFileSync(join(root, "public/documents", directory.name, directory.files[0]));
     assert.ok(published.length > 1000);
   }

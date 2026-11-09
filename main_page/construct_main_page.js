@@ -128,7 +128,7 @@ function fillTree(nav, tree, content, directories) {
 }
 
 function fileLabel(file) {
-  return file.replace(/\.docx$/i, "");
+  return file.replace(/\.(docx|xlsx|xls)$/i, "");
 }
 
 function showIntro(content) {
@@ -147,8 +147,20 @@ function showIntro(content) {
 }
 
 let viewerFrame = null;
+let viewerKindOpen = "";
 let viewerReady = Promise.resolve();
 let workspaceEl = null;
+
+const VIEWERS = {
+  doc: "/viewer/rich_text/rich_text_viewer/index.html",
+  sheet: "/viewer/spreadsheet/spreadsheet_viewer/index.html",
+};
+
+function viewerKind(file) {
+  const lower = file.toLowerCase();
+  if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "sheet";
+  return "doc";
+}
 
 function showContentPane() {
   if (!workspaceEl || !workspaceEl.classList.contains("narrow")) return;
@@ -160,7 +172,9 @@ function showContentPane() {
 function showDocument(content, directory, file) {
   const src = documentUrl(directory, file);
   const title = fileLabel(file);
-  if (!viewerFrame || !viewerFrame.isConnected) {
+  const kind = viewerKind(file);
+  const page = VIEWERS[kind];
+  if (!viewerFrame || !viewerFrame.isConnected || viewerKindOpen !== kind) {
     content.replaceChildren();
     const viewer = document.createElement("div");
     viewer.className = "rich-text-viewer";
@@ -169,15 +183,15 @@ function showDocument(content, directory, file) {
     viewerFrame.title = title;
     viewer.append(viewerFrame);
     content.append(viewer);
+    viewerKindOpen = kind;
     viewerFrame.dataset.src = src;
     viewerReady = new Promise((resolve) => {
       viewerFrame.addEventListener("load", () => {
-        const ready = viewerFrame.contentWindow.editorReady;
+        const ready = viewerFrame.contentWindow && viewerFrame.contentWindow.editorReady;
         if (ready && typeof ready.then === "function") ready.then(resolve);
         else resolve();
       }, { once: true });
     });
-    const page = "/viewer/rich_text/rich_text_viewer/index.html";
     fetch("/version.txt", { cache: "no-store" })
       .then((response) => (response.ok ? response.text() : ""))
       .then((text) => {

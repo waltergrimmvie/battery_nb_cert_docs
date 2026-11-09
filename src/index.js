@@ -1,6 +1,7 @@
 import { PresenceRoom } from "./room.js";
 import { browserFiles } from "./browser-files.js";
 import { downloadRichTextEditor, versionNumber, VIEWER_PREFIX } from "../server/refresh_editor.mjs";
+import { downloadSpreadsheet, SHEET_PREFIX } from "../server/refresh_spreadsheet.mjs";
 
 export { PresenceRoom };
 
@@ -18,6 +19,7 @@ const MODULE_HEADER = {
 const FILE_TYPE = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".svg": "image/svg+xml",
   ".png": "image/png",
@@ -27,16 +29,27 @@ const FILE_TYPE = {
   ".json": "application/json",
   ".txt": "text/plain; charset=utf-8",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".xls": "application/vnd.ms-excel",
 };
 
 let editorFiles = new Map();
+let sheetFiles = new Map();
 let savedEditorVersion = 0;
+let savedSheetVersion = 0;
 let editorReady = false;
-let installing = null;
+let sheetReady = false;
+let installingEditor = null;
+let installingSheet = null;
 
 function editorFile(pathname) {
   if (!pathname.startsWith(VIEWER_PREFIX + "/")) return null;
   return editorFiles.get(pathname.slice(VIEWER_PREFIX.length + 1)) || null;
+}
+
+function sheetFile(pathname) {
+  if (!pathname.startsWith(SHEET_PREFIX + "/")) return null;
+  return sheetFiles.get(pathname.slice(SHEET_PREFIX.length + 1)) || null;
 }
 
 async function localEditorVersion(env) {
@@ -50,10 +63,21 @@ async function localEditorVersion(env) {
   return savedEditorVersion;
 }
 
+async function localSheetVersion(env) {
+  if (savedSheetVersion) return savedSheetVersion;
+  try {
+    const stored = await env.ASSETS.fetch(new Request("https://desk.local/version_spreadsheet.txt"));
+    if (stored.ok) savedSheetVersion = versionNumber(await stored.text());
+  } catch {
+    savedSheetVersion = 0;
+  }
+  return savedSheetVersion;
+}
+
 // Compare version_text_editor.txt with the text editor site. A newer gzip
 // replaces the viewer in this worker before any page is returned.
 async function ensureEditor(env) {
-  if (!installing) {
+  if (!installingEditor) {
     const job = (async () => {
       const pack = await downloadRichTextEditor(await localEditorVersion(env));
       if (!pack.report.skipped && pack.files) {
@@ -63,12 +87,33 @@ async function ensureEditor(env) {
       editorReady = true;
       return pack.report;
     })();
-    installing = job;
+    installingEditor = job;
     job.finally(() => {
-      if (installing === job) installing = null;
+      if (installingEditor === job) installingEditor = null;
     });
   }
-  return installing;
+  return installingEditor;
+}
+
+// Compare version_spreadsheet.txt with spreadsheet.dev-q-prox.com. A newer
+// gzip replaces the spreadsheet viewer the same way as the rich text editor.
+async function ensureSheet(env) {
+  if (!installingSheet) {
+    const job = (async () => {
+      const pack = await downloadSpreadsheet(await localSheetVersion(env));
+      if (!pack.report.skipped && pack.files) {
+        sheetFiles = pack.files;
+        savedSheetVersion = versionNumber(pack.report.version);
+      }
+      sheetReady = true;
+      return pack.report;
+    })();
+    installingSheet = job;
+    job.finally(() => {
+      if (installingSheet === job) installingSheet = null;
+    });
+  }
+  return installingSheet;
 }
 
 export default {
@@ -84,14 +129,29 @@ export default {
 
     const isPage = url.pathname === "/" || url.pathname === "/index.html";
     const isRefresh = url.pathname === "/editor/refresh";
+    const isSheetRefresh = url.pathname === "/spreadsheet/refresh";
     const isViewer = url.pathname.startsWith(VIEWER_PREFIX + "/");
-    if (isPage || isRefresh || (isViewer && !editorReady)) {
+    const isSheetViewer = url.pathname.startsWith(SHEET_PREFIX + "/");
+    if (isPage || isRefresh || isSheetRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady)) {
       try {
-        const report = await ensureEditor(env);
-        if (isRefresh) return Response.json(report, { headers: NO_STORE });
+        if (isSheetRefresh) {
+          const report = await ensureSheet(env);
+          return Response.json(report, { headers: NO_STORE });
+        }
+        if (isRefresh) {
+          const report = await ensureEditor(env);
+          return Response.json(report, { headers: NO_STORE });
+        }
+        if (isPage) {
+          await Promise.all([ensureEditor(env), ensureSheet(env)]);
+        } else if (isViewer && !editorReady) {
+          await ensureEditor(env);
+        } else if (isSheetViewer && !sheetReady) {
+          await ensureSheet(env);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Download failed.";
-        if (isRefresh) {
+        if (isRefresh || isSheetRefresh) {
           return Response.json({ ok: false, error: message }, { status: 502, headers: NO_STORE });
         }
         return new Response(message, {
@@ -101,7 +161,7 @@ export default {
       }
     }
 
-    const fresh = editorFile(url.pathname);
+    const fresh = editorFile(url.pathname) || sheetFile(url.pathname);
     if (fresh) {
       const type = FILE_TYPE[url.pathname.slice(url.pathname.lastIndexOf(".")).toLowerCase()] || "application/octet-stream";
       return new Response(fresh, { headers: { "content-type": type, ...NO_STORE } });

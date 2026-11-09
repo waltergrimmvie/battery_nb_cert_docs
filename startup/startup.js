@@ -7,15 +7,16 @@ const { populateMenu } = await import(`../menu_bar/populate/populate.js${stamp}`
 const { connectDesk } = await import(`./desk.js${stamp}`);
 
 // Procedures this desk calls, in order:
-// 1. refreshEditor()        confirms the gzip installed before this page was sent
-// 2. readIndexedName()      IndexedDB. Skip login when the name is already there.
-// 3. showLogin()            setup/login_user.js. Dropdown only, then Enter.
-// 4. saveIndexedName()
-// 5. constructMainPage()    main_page/construct_main_page.js
-// 6. constructMenuDesign()  menu bar icon and mega menu
-// 7. connectDesk()          who is logged in
-// 8. setOnlineUsers()       menu_bar/online_users.js keeps the online array
-// 9. populateMenu()         fills the mega menu on every desk update
+// 1. refreshEditor()        confirms the rich text gzip
+// 2. refreshSpreadsheet()   confirms the spreadsheet gzip
+// 3. readIndexedName()      IndexedDB. Skip login when the name is already there.
+// 4. showLogin()            setup/login_user.js. Dropdown only, then Enter.
+// 5. saveIndexedName()
+// 6. constructMainPage()    main_page/construct_main_page.js
+// 7. constructMenuDesign()  menu bar icon and mega menu
+// 8. connectDesk()          who is logged in
+// 9. setOnlineUsers()       menu_bar/online_users.js keeps the online array
+// 10. populateMenu()        fills the mega menu on every desk update
 
 const DB_NAME = "battery_nb_cert_docs";
 const STORE = "session";
@@ -41,6 +42,7 @@ start().catch((error) => {
 
 async function start() {
   await refreshEditor();
+  await refreshSpreadsheet();
   const existing = await readIndexedName();
   if (existing) {
     await enterDesk(existing);
@@ -56,6 +58,15 @@ async function refreshEditor() {
   const report = await response.json().catch(() => null);
   if (!response.ok || !report?.ok) {
     throw new Error(report?.error || "The rich text editor could not be downloaded.");
+  }
+}
+
+async function refreshSpreadsheet() {
+  root.textContent = "Checking the spreadsheet…";
+  const response = await fetch("/spreadsheet/refresh", { method: "POST", cache: "no-store" });
+  const report = await response.json().catch(() => null);
+  if (!response.ok || !report?.ok) {
+    throw new Error(report?.error || "The spreadsheet could not be downloaded.");
   }
 }
 
