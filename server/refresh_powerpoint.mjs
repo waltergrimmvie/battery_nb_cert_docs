@@ -61,9 +61,10 @@ export function preparePowerpoint(rawFiles) {
     const ext = extension(rel);
     if (!TEXT_EXT.has(ext)) continue;
     let text = new TextDecoder().decode(bytes);
-    if (rel === "index.html") text = installPresentationHooks(text, version);
-    if (rel === "js/boot.js") text = rewriteBootPaths(text);
-    else text = rewriteLocalPaths(text, version);
+    if (rel === "index.html") text = installPresentationHooks(text);
+    if (rel === "js/boot.js") text = patchBoot(rewriteBootPaths(text));
+    if (rel === "js/app.js") text = patchApp(text);
+    if (rel !== "js/boot.js") text = rewriteLocalPaths(text, version);
     files.set(rel, new TextEncoder().encode(text));
   }
   const required = [
@@ -91,29 +92,57 @@ export function preparePowerpoint(rawFiles) {
   };
 }
 
-function installPresentationHooks(html, version) {
-  const v = encodeURIComponent(String(version || "0"));
+function installPresentationHooks(html) {
   const hook = [
     "<script>",
     "window.PPT=window.PPT||{};",
-    "if(new URLSearchParams(location.search).get(\"src\"))window.PPT.holdSample=true;",
+    "if(new URLSearchParams(location.search).get('src'))window.PPT.holdSample=true;",
     "window.editorReady=new Promise(function(resolve){window.__editorReady=resolve;});",
     "window.populate=async function(src){",
-    "  const response=await fetch(src,{cache:\"no-store\"});",
-    "  if(!response.ok)throw new Error(\"Could not open the presentation\");",
+    "  await window.editorReady;",
+    "  const response=await fetch(src,{cache:'no-store'});",
+    "  if(!response.ok)throw new Error('Could not open the presentation');",
     "  const buffer=await response.arrayBuffer();",
-    "  const name=decodeURIComponent((String(src).split(\"/\").pop()||\"deck\").replace(/\\.pptx$/i,\"\"))+\".pptx\";",
+    "  const name=decodeURIComponent((String(src).split('/').pop()||'deck').split('?')[0]);",
     "  const result=await PPT.importPptx(buffer,name);",
-    "  if(PPT.populate)PPT.populate(result.deck,result.report);",
-    "  if(window.__editorReady)window.__editorReady();",
+    "  if(!result||!result.deck||!result.deck.slides)throw new Error('The file did not become a QPP deck.');",
+    "  (PPT.populate)(result.deck,result.report);",
     "  return true;",
     "};",
-    "const passed=new URLSearchParams(location.search).get(\"src\");",
-    "if(passed){window.PPT.holdSample=true;window.addEventListener(\"load\",function(){window.populate(passed).catch(function(err){if(PPT.showImportError)PPT.showImportError(err.message);});});}",
+    "window.__scriptsReady=function(){",
+    "  if(window.__editorReady)window.__editorReady();",
+    "  const passed=new URLSearchParams(location.search).get('src');",
+    "  if(passed)window.populate(passed).catch(function(err){if(PPT.showImportError)PPT.showImportError(err.message);});",
+    "};",
     "</script>",
   ].join("");
   if (html.includes("</body>")) return html.replace("</body>", hook + "</body>");
   return html + hook;
+}
+
+function patchApp(text) {
+  // Same scheme as the spreadsheet: import in the browser, then populate.
+  // Do not store the file on an API that this desk does not have.
+  text = text.replace(
+    "function storePptx(buffer, name) {",
+    "function storePptx(buffer, name) { return Promise.resolve(); }\n  function storePptxUnused(buffer, name) {",
+  );
+  text = text.replace(
+    'fetch(apiUrl(), { cache: "no-store" })',
+    'fetch(new URLSearchParams(location.search).get("src") ? "about:blank" : apiUrl(), { cache: "no-store" })',
+  );
+  return text;
+}
+
+function patchBoot(text) {
+  const ready = ".then(function(){if(window.__scriptsReady)window.__scriptsReady();})";
+  if (!text.includes("window.__scriptsReady")) {
+    text = text.replace(
+      "}, Promise.resolve());",
+      "}, Promise.resolve())" + ready + ";",
+    );
+  }
+  return text;
 }
 
 function rewriteBootPaths(text) {
