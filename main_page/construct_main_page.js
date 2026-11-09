@@ -84,6 +84,7 @@ function renderTree(tree, content) {
 const FILE_LABELS = {
   "EU Battery Line Checklist.docx": "EU Battery Line Checklist",
   "EU_Battery_17065_Detailed_Checklist_v5_Compressed.xlsx": "EU Battery 17065 Detailed Checklist (Excel)",
+  "Qauditors_EU_Vehicle_Certification_Company_CN.pptx": "EU Vehicle Certification Brief (PowerPoint)",
 };
 
 function fillTree(nav, tree, content, directories) {
@@ -135,7 +136,7 @@ function fillTree(nav, tree, content, directories) {
 
 function fileLabel(file) {
   if (FILE_LABELS[file]) return FILE_LABELS[file];
-  return file.replace(/\.(docx|xlsx|xls)$/i, "");
+  return file.replace(/\.(docx|xlsx|xls|pptx)$/i, "");
 }
 
 function showIntro(content) {
@@ -161,11 +162,13 @@ let workspaceEl = null;
 const VIEWERS = {
   doc: "/viewer/rich_text/rich_text_viewer/index.html",
   sheet: "/viewer/spreadsheet/spreadsheet_viewer/index.html",
+  ppt: "/viewer/powerpoint/powerpoint_viewer/index.html",
 };
 
 function viewerKind(file) {
   const lower = file.toLowerCase();
   if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "sheet";
+  if (lower.endsWith(".pptx")) return "ppt";
   return "doc";
 }
 
@@ -185,10 +188,53 @@ function showDocument(content, directory, file) {
     content.replaceChildren();
     const viewer = document.createElement("div");
     viewer.className = "rich-text-viewer";
+
+    if (kind === "ppt") {
+      const bar = document.createElement("div");
+      bar.className = "ppt-bar";
+      const versionLabel = document.createElement("span");
+      versionLabel.className = "ppt-version";
+      versionLabel.textContent = "Version —";
+      const widthLabel = document.createElement("label");
+      widthLabel.textContent = "Preview width";
+      const widthSlider = document.createElement("input");
+      widthSlider.type = "range";
+      widthSlider.min = "180";
+      widthSlider.max = "480";
+      widthSlider.value = "260";
+      widthSlider.setAttribute("aria-label", "Preview page width");
+      widthSlider.addEventListener("input", () => {
+        viewer.style.setProperty("--ppt-preview", widthSlider.value + "px");
+      });
+      widthLabel.append(widthSlider);
+      bar.append(versionLabel, widthLabel);
+      viewer.append(bar);
+      fetch("/version_powerpoint.txt", { cache: "no-store" })
+        .then((r) => (r.ok ? r.text() : ""))
+        .then((t) => { versionLabel.textContent = "Version " + (t.trim() || "1"); })
+        .catch(() => {});
+    }
+
     viewerFrame = document.createElement("iframe");
     viewerFrame.className = "rich-text-frame";
     viewerFrame.title = title;
     viewer.append(viewerFrame);
+
+    if (kind === "ppt") {
+      const nav = document.createElement("div");
+      nav.className = "ppt-nav";
+      const prev = document.createElement("button");
+      prev.type = "button";
+      prev.textContent = "Previous";
+      const next = document.createElement("button");
+      next.type = "button";
+      next.textContent = "Next";
+      prev.addEventListener("click", () => postSlide(viewerFrame, -1));
+      next.addEventListener("click", () => postSlide(viewerFrame, 1));
+      nav.append(prev, next);
+      viewer.append(nav);
+    }
+
     content.append(viewer);
     viewerKindOpen = kind;
     viewerFrame.dataset.src = src;
@@ -199,7 +245,8 @@ function showDocument(content, directory, file) {
         else resolve();
       }, { once: true });
     });
-    fetch("/version.txt", { cache: "no-store" })
+    const versionFile = kind === "ppt" ? "/version_powerpoint.txt" : kind === "sheet" ? "/version_spreadsheet.txt" : "/version_text_editor.txt";
+    fetch(versionFile, { cache: "no-store" })
       .then((response) => (response.ok ? response.text() : ""))
       .then((text) => {
         viewerFrame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&src=" + encodeURIComponent(src);
@@ -214,6 +261,17 @@ function showDocument(content, directory, file) {
   if (viewerFrame.dataset.src === src) return;
   viewerFrame.dataset.src = src;
   viewerReady = viewerReady.then(() => viewerFrame.contentWindow.populate(src));
+}
+
+function postSlide(frame, delta) {
+  try {
+    const win = frame.contentWindow;
+    if (win && typeof win.postMessage === "function") {
+      win.postMessage({ type: "ppt-slide", delta }, "*");
+    }
+  } catch {
+    // The viewer page stays as it is. The host only signals.
+  }
 }
 
 function documentUrl(directory, file) {

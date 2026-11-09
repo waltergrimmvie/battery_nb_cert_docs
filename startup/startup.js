@@ -9,7 +9,8 @@ const { connectDesk } = await import(`./desk.js${stamp}`);
 // Procedures this desk calls, in order:
 // 1. refreshEditor()        confirms the rich text gzip
 // 2. refreshSpreadsheet()   confirms the spreadsheet gzip
-// 3. readIndexedName()      IndexedDB. Skip login when the name is already there.
+// 3. refreshPowerpoint()    confirms the PowerPoint gzip
+// 4. readIndexedName()      IndexedDB. Skip login when the name is already there.
 // 4. showLogin()            setup/login_user.js. Dropdown only, then Enter.
 // 5. saveIndexedName()
 // 6. constructMainPage()    main_page/construct_main_page.js
@@ -43,6 +44,7 @@ start().catch((error) => {
 async function start() {
   await refreshEditor();
   await refreshSpreadsheet();
+  await refreshPowerpoint();
   const existing = await readIndexedName();
   if (existing) {
     await enterDesk(existing);
@@ -67,6 +69,15 @@ async function refreshSpreadsheet() {
   const report = await response.json().catch(() => null);
   if (!response.ok || !report?.ok) {
     throw new Error(report?.error || "The spreadsheet could not be downloaded.");
+  }
+}
+
+async function refreshPowerpoint() {
+  root.textContent = "Checking the PowerPoint viewer…";
+  const response = await fetch("/powerpoint/refresh", { method: "POST", cache: "no-store" });
+  const report = await response.json().catch(() => null);
+  if (!response.ok || !report?.ok) {
+    throw new Error(report?.error || "The PowerPoint viewer could not be downloaded.");
   }
 }
 

@@ -2,6 +2,7 @@ import { PresenceRoom } from "./room.js";
 import { browserFiles } from "./browser-files.js";
 import { downloadRichTextEditor, versionNumber, VIEWER_PREFIX } from "../server/refresh_editor.mjs";
 import { downloadSpreadsheet, SHEET_PREFIX } from "../server/refresh_spreadsheet.mjs";
+import { downloadPowerpoint, PPT_PREFIX } from "../server/refresh_powerpoint.mjs";
 
 export { PresenceRoom };
 
@@ -30,6 +31,7 @@ const FILE_TYPE = {
   ".txt": "text/plain; charset=utf-8",
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ".xls": "application/vnd.ms-excel",
 };
 
@@ -39,8 +41,12 @@ let savedEditorVersion = 0;
 let savedSheetVersion = 0;
 let editorReady = false;
 let sheetReady = false;
+let pptReady = false;
 let installingEditor = null;
 let installingSheet = null;
+let installingPpt = null;
+let pptFiles = new Map();
+let savedPptVersion = 0;
 
 function editorFile(pathname) {
   if (!pathname.startsWith(VIEWER_PREFIX + "/")) return null;
@@ -50,6 +56,11 @@ function editorFile(pathname) {
 function sheetFile(pathname) {
   if (!pathname.startsWith(SHEET_PREFIX + "/")) return null;
   return sheetFiles.get(pathname.slice(SHEET_PREFIX.length + 1)) || null;
+}
+
+function pptFile(pathname) {
+  if (!pathname.startsWith(PPT_PREFIX + "/")) return null;
+  return pptFiles.get(pathname.slice(PPT_PREFIX.length + 1)) || null;
 }
 
 async function localEditorVersion(env) {
@@ -72,6 +83,17 @@ async function localSheetVersion(env) {
     savedSheetVersion = 0;
   }
   return savedSheetVersion;
+}
+
+async function localPptVersion(env) {
+  if (savedPptVersion) return savedPptVersion;
+  try {
+    const stored = await env.ASSETS.fetch(new Request("https://desk.local/version_powerpoint.txt"));
+    if (stored.ok) savedPptVersion = versionNumber(await stored.text());
+  } catch {
+    savedPptVersion = 0;
+  }
+  return savedPptVersion;
 }
 
 // Compare version_text_editor.txt with the text editor site. A newer gzip
@@ -116,6 +138,27 @@ async function ensureSheet(env) {
   return installingSheet;
 }
 
+// Compare version_powerpoint.txt with presentation.dev-qprox.com. A newer
+// gzip replaces the PowerPoint viewer the same way as the rich text editor.
+async function ensurePpt(env) {
+  if (!installingPpt) {
+    const job = (async () => {
+      const pack = await downloadPowerpoint(await localPptVersion(env));
+      if (!pack.report.skipped && pack.files) {
+        pptFiles = pack.files;
+        savedPptVersion = versionNumber(pack.report.version);
+      }
+      pptReady = true;
+      return pack.report;
+    })();
+    installingPpt = job;
+    job.finally(() => {
+      if (installingPpt === job) installingPpt = null;
+    });
+  }
+  return installingPpt;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -130,10 +173,16 @@ export default {
     const isPage = url.pathname === "/" || url.pathname === "/index.html";
     const isRefresh = url.pathname === "/editor/refresh";
     const isSheetRefresh = url.pathname === "/spreadsheet/refresh";
+    const isPptRefresh = url.pathname === "/powerpoint/refresh";
     const isViewer = url.pathname.startsWith(VIEWER_PREFIX + "/");
     const isSheetViewer = url.pathname.startsWith(SHEET_PREFIX + "/");
-    if (isPage || isRefresh || isSheetRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady)) {
+    const isPptViewer = url.pathname.startsWith(PPT_PREFIX + "/");
+    if (isPage || isRefresh || isSheetRefresh || isPptRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady) || (isPptViewer && !pptReady)) {
       try {
+        if (isPptRefresh) {
+          const report = await ensurePpt(env);
+          return Response.json(report, { headers: NO_STORE });
+        }
         if (isSheetRefresh) {
           const report = await ensureSheet(env);
           return Response.json(report, { headers: NO_STORE });
@@ -143,15 +192,17 @@ export default {
           return Response.json(report, { headers: NO_STORE });
         }
         if (isPage) {
-          await Promise.all([ensureEditor(env), ensureSheet(env)]);
+          await Promise.all([ensureEditor(env), ensureSheet(env), ensurePpt(env)]);
         } else if (isViewer && !editorReady) {
           await ensureEditor(env);
         } else if (isSheetViewer && !sheetReady) {
           await ensureSheet(env);
+        } else if (isPptViewer && !pptReady) {
+          await ensurePpt(env);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Download failed.";
-        if (isRefresh || isSheetRefresh) {
+        if (isRefresh || isSheetRefresh || isPptRefresh) {
           return Response.json({ ok: false, error: message }, { status: 502, headers: NO_STORE });
         }
         return new Response(message, {
@@ -161,7 +212,7 @@ export default {
       }
     }
 
-    const fresh = editorFile(url.pathname) || sheetFile(url.pathname);
+    const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname);
     if (fresh) {
       const type = FILE_TYPE[url.pathname.slice(url.pathname.lastIndexOf(".")).toLowerCase()] || "application/octet-stream";
       return new Response(fresh, { headers: { "content-type": type, ...NO_STORE } });

@@ -534,3 +534,49 @@ select:focus, button:focus-visible, .slider:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .mega:not([hidden]), .chev { animation: none; transition: none; }
 }
+
+/* PowerPoint viewer host chrome */
+.ppt-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px;
+  background: #1e3a32;
+  color: #f3efe6;
+  font-size: 13px;
+}
+.ppt-version {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.ppt-bar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.ppt-bar input[type="range"] {
+  width: 140px;
+}
+.ppt-nav {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px;
+  background: #1e3a32;
+}
+.ppt-nav button {
+  background: #f3efe6;
+  color: #1e3a32;
+  border: none;
+  padding: 6px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.ppt-nav button:hover {
+  background: #fff;
+}
+.rich-text-viewer {
+  --ppt-preview: 260px;
+}
