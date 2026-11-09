@@ -54,15 +54,17 @@ export function preparePowerpoint(rawFiles) {
     files.set(rel, bytes);
   }
 
+  const version = new TextDecoder().decode(files.get("version.txt") || new Uint8Array()).trim();
+  if (!version) throw new Error("The PowerPoint gzip has no version.");
+
   for (const [rel, bytes] of [...files]) {
     const ext = extension(rel);
     if (!TEXT_EXT.has(ext)) continue;
     let text = new TextDecoder().decode(bytes);
-    text = rewriteLocalPaths(text);
+    if (rel === "index.html") text = installPresentationHooks(text, version);
+    text = rewriteLocalPaths(text, version);
     files.set(rel, new TextEncoder().encode(text));
   }
-
-  const version = new TextDecoder().decode(files.get("version.txt") || new Uint8Array()).trim();
   const required = [
     "index.html",
     "version.txt",
@@ -70,10 +72,9 @@ export function preparePowerpoint(rawFiles) {
   ];
   const missing = required.filter((name) => !files.has(name));
   if (missing.length) throw new Error("The PowerPoint gzip is incomplete: " + missing.join(", "));
-  if (!version) throw new Error("The PowerPoint gzip has no version.");
-
   const index = new TextDecoder().decode(files.get("index.html"));
   if (!index.includes("js/app.js")) throw new Error("The PowerPoint page does not load its own script.");
+  if (!index.includes("window.populate")) throw new Error("The PowerPoint viewer cannot replace an open deck.");
 
   return {
     files,
@@ -87,17 +88,45 @@ export function preparePowerpoint(rawFiles) {
   };
 }
 
-function rewriteLocalPaths(text) {
-  return text
-    .replaceAll("/fonts/", PPT_PREFIX + "/fonts/")
-    .replaceAll("/css/", PPT_PREFIX + "/css/")
-    .replaceAll("/js/", PPT_PREFIX + "/js/")
-    .replaceAll("/design/", PPT_PREFIX + "/design/")
-    .replaceAll("/events/", PPT_PREFIX + "/events/")
-    .replaceAll("/process/", PPT_PREFIX + "/process/")
-    .replaceAll("/media/", PPT_PREFIX + "/media/")
-    .replaceAll("/powerpoint/", PPT_PREFIX + "/powerpoint/")
-    .replaceAll("/version.txt", PPT_PREFIX + "/version.txt");
+function installPresentationHooks(html, version) {
+  const v = encodeURIComponent(String(version || "0"));
+  const hook = [
+    "<script>",
+    "window.PPT=window.PPT||{};",
+    "if(new URLSearchParams(location.search).get(\"src\"))window.PPT.holdSample=true;",
+    "window.editorReady=new Promise(function(resolve){window.__editorReady=resolve;});",
+    "window.populate=async function(src){",
+    "  const response=await fetch(src,{cache:\"no-store\"});",
+    "  if(!response.ok)throw new Error(\"Could not open the presentation\");",
+    "  const buffer=await response.arrayBuffer();",
+    "  const name=decodeURIComponent((String(src).split(\"/\").pop()||\"deck\").replace(/\\.pptx$/i,\"\"))+\".pptx\";",
+    "  const result=await PPT.importPptx(buffer,name);",
+    "  if(PPT.populate)PPT.populate(result.deck,result.report);",
+    "  if(window.__editorReady)window.__editorReady();",
+    "  return true;",
+    "};",
+    "const passed=new URLSearchParams(location.search).get(\"src\");",
+    "if(passed){window.PPT.holdSample=true;window.addEventListener(\"load\",function(){window.populate(passed).catch(function(err){if(PPT.showImportError)PPT.showImportError(err.message);});});}",
+    "</script>",
+  ].join("");
+  if (html.includes("</body>")) return html.replace("</body>", hook + "</body>");
+  return html + hook;
+}
+
+function rewriteLocalPaths(text, version) {
+  const v = encodeURIComponent(String(version || "0"));
+  const prefix = PPT_PREFIX + "/";
+  text = text
+    .replaceAll('href="css/', 'href="' + prefix + "css/")
+    .replaceAll('href="design/', 'href="' + prefix + "design/")
+    .replaceAll('src="js/', 'src="' + prefix + "js/")
+    .replaceAll('src="engine/', 'src="' + prefix + "engine/")
+    .replaceAll('src="events/', 'src="' + prefix + "events/")
+    .replaceAll('src="process/', 'src="' + prefix + "process/")
+    .replaceAll('src="design/', 'src="' + prefix + "design/")
+    .replaceAll('src="fonts/', 'src="' + prefix + "fonts/");
+  text = text.replaceAll('.js"', ".js?v=" + v + '"').replaceAll('.css"', ".css?v=" + v + '"');
+  return text;
 }
 
 function safeName(name) {
