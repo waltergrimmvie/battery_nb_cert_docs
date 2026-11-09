@@ -212,6 +212,17 @@ export default {
       }
     }
 
+    const versionFile = {
+      "/version_text_editor.txt": savedEditorVersion,
+      "/version_spreadsheet.txt": savedSheetVersion,
+      "/version_powerpoint.txt": savedPptVersion,
+    };
+    if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname) && versionFile[url.pathname]) {
+      return new Response(String(versionFile[url.pathname]) + "\n", {
+        headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE },
+      });
+    }
+
     const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname);
     if (fresh) {
       const type = FILE_TYPE[url.pathname.slice(url.pathname.lastIndexOf(".")).toLowerCase()] || "application/octet-stream";
