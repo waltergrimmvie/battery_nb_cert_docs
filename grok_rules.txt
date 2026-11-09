@@ -59,3 +59,24 @@ Desk
 ----
 The WebSocket room is unchanged. The mega menu is the live list of who
 is on the desk. Names are text, never HTML.
+
+Documents — one-time upload
+---------------------------
+The Word files under documents/ are uploaded to the Cloudflare Worker
+assets (public/documents/) exactly once.
+
+After that upload has landed on the live Worker:
+- Do not replace, rename, or republish those documents from Git again.
+- Do not run scripts/index-documents.mjs in a way that overwrites
+  public/documents/.
+- A later GitHub push must not overwrite the documents already on
+  Cloudflare.
+- Once the files are confirmed on the live site, remove the document
+  binaries from Git. They stay on the Cloudflare assets from that one
+  upload.
+- Future work on the checklist or the page shell does not touch the
+  uploaded Word files.
+
+Marker: documents-uploaded.txt in the repo root. When that file exists
+and contains "locked", the index script refuses to wipe or copy over
+public/documents/.

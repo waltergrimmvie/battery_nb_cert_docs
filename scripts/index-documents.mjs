@@ -1,9 +1,12 @@
-import { cpSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const documents = join(root, "documents");
+const lockFile = join(root, "documents-uploaded.txt");
+
+const locked = existsSync(lockFile) && /locked/i.test(readFileSync(lockFile, "utf8"));
 
 const directories = readdirSync(documents)
   .filter((name) => statSync(join(documents, name)).isDirectory())
@@ -20,6 +23,12 @@ const directories = readdirSync(documents)
   }));
 
 writeFileSync(join(documents, "index.json"), `${JSON.stringify(directories, null, 2)}\n`);
+
+if (locked) {
+  console.log("documents-uploaded.txt is locked — public/documents/ was not touched");
+  console.log("index.json was refreshed only. Do not overwrite the Cloudflare document upload.");
+  process.exit(0);
+}
 
 const published = join(root, "public", "documents");
 rmSync(published, { recursive: true, force: true });
