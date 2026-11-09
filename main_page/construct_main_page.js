@@ -67,7 +67,7 @@ function renderTree(tree, content) {
   tree.append(label, status, nav);
   showIntro(content);
 
-  fetch("/documents/index.json")
+  fetch("/documents/index.json", { cache: "no-store" })
     .then((response) => {
       if (!response.ok) throw new Error("The document list could not be read.");
       return response.json();
@@ -81,6 +81,11 @@ function renderTree(tree, content) {
     });
 }
 
+const FILE_LABELS = {
+  "EU Battery Line Checklist.docx": "EU Battery Line Checklist",
+  "EU_Battery_17065_Detailed_Checklist_v5_Compressed.xlsx": "EU Battery 17065 Detailed Checklist (Excel)",
+};
+
 function fillTree(nav, tree, content, directories) {
   for (const directory of directories) {
     const group = document.createElement("div");
@@ -89,7 +94,8 @@ function fillTree(nav, tree, content, directories) {
     const toggle = document.createElement("button");
     toggle.type = "button";
     toggle.className = "tree-root";
-    toggle.setAttribute("aria-expanded", "false");
+    const openFirst = directory.name === "General Documents";
+    toggle.setAttribute("aria-expanded", openFirst ? "true" : "false");
     const chev = document.createElement("span");
     chev.className = "chev";
     chev.setAttribute("aria-hidden", "true");
@@ -99,7 +105,7 @@ function fillTree(nav, tree, content, directories) {
 
     const kids = document.createElement("div");
     kids.className = "tree-children";
-    kids.hidden = true;
+    kids.hidden = !openFirst;
     toggle.addEventListener("click", () => {
       const open = toggle.getAttribute("aria-expanded") !== "true";
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
@@ -128,6 +134,7 @@ function fillTree(nav, tree, content, directories) {
 }
 
 function fileLabel(file) {
+  if (FILE_LABELS[file]) return FILE_LABELS[file];
   return file.replace(/\.(docx|xlsx|xls)$/i, "");
 }
 

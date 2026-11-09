@@ -40,6 +40,11 @@ test("document directories are the tree and each Word file is a child", async ()
   assert.match(paragraphs.join("\n"), /Legal & Contractual Matters/);
   const checklist = await docxToParagraphs(readFileSync(join(root, "documents", index[0].name, index[0].files[0])));
   assert.match(checklist.join("\n"), /CLIENT REQUIREMENTS CHECKLIST/);
+  const page = readFileSync(join(root, "main_page/construct_main_page.js"), "utf8");
+  assert.match(page, /EU Battery 17065 Detailed Checklist \(Excel\)/);
+  assert.match(page, /directory\.name === "General Documents"/);
+  assert.equal(readFileSync(join(root, "public/version.txt"), "utf8").trim(), "11");
+  assert.equal(readFileSync(join(root, "version.txt"), "utf8").trim(), "11");
 });
 
 test("login offers the desk names and no typed name", () => {
