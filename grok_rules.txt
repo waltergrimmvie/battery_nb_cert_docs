@@ -60,25 +60,28 @@ Desk
 The WebSocket room is unchanged. The mega menu is the live list of who
 is on the desk. Names are text, never HTML.
 
-Viewers — same routine for all three
--------------------------------------
-Rich text, spreadsheet, and PowerPoint use the same path:
-1. Read the local version file.
-   version_text_editor.txt
-   version_spreadsheet.txt
-   version_powerpoint.txt
-2. Compare it with the remote version.txt on
-   texteditor.dev-q-prox.com
-   spreadsheet.dev-q-prox.com
-   presentation.dev-q-prox.com
-3. If the remote number is higher, download the gzip:
-   Download/rich_text_editor.gzip
-   Download/spreadsheet.gzip
-   Download/powerpoint_viewer.gzip
-4. Extract it over the viewer already held by the worker.
-5. Feed those files to the client.
-6. The iframe is opened with ?v=<that viewer's version> so the
-   version is the cache buster.
+Viewers — one scheme
+---------------------
+Rich text, spreadsheet, and PowerPoint use the same path, in the
+viewer repository and in this desk.
+
+Viewer repository:
+- version.txt is one integer. Every change increments it.
+- index.html loads its boot script with ?v=<that version>.
+- Download/<name>.gzip is packed from Download/gzip-files.txt.
+- The page is an object the desk can call:
+  window.editorReady  resolves when the viewer can draw
+  window.populate(src) fetches the file, runs the engine import,
+                       then draws it
+- Opened directly, ?src= uses that same populate.
+
+This desk:
+- version_text_editor.txt, version_spreadsheet.txt, version_powerpoint.txt
+  are compared with the remote version.txt.
+- A higher remote number downloads the gzip and extracts it over the
+  viewer already held here.
+- The iframe is opened with ?v=<downloaded version>&src=<document>.
+- populate converts and draws. Nothing is stored on an API.
 
 Documents — one-time upload
 ---------------------------
