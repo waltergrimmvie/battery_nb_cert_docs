@@ -62,18 +62,21 @@ export function preparePowerpoint(rawFiles) {
     if (!TEXT_EXT.has(ext)) continue;
     let text = new TextDecoder().decode(bytes);
     if (rel === "index.html") text = installPresentationHooks(text, version);
-    text = rewriteLocalPaths(text, version);
+    if (rel === "js/boot.js") text = rewriteBootPaths(text);
+    else text = rewriteLocalPaths(text, version);
     files.set(rel, new TextEncoder().encode(text));
   }
   const required = [
     "index.html",
     "version.txt",
+    "js/boot.js",
     "js/app.js",
+    "engine/import-pptx.js",
   ];
   const missing = required.filter((name) => !files.has(name));
   if (missing.length) throw new Error("The PowerPoint gzip is incomplete: " + missing.join(", "));
   const index = new TextDecoder().decode(files.get("index.html"));
-  if (!index.includes("js/app.js")) throw new Error("The PowerPoint page does not load its own script.");
+  if (!index.includes("js/boot.js")) throw new Error("The PowerPoint page does not load its own script.");
   if (!index.includes("window.populate")) throw new Error("The PowerPoint viewer cannot replace an open deck.");
 
   return {
@@ -82,7 +85,7 @@ export function preparePowerpoint(rawFiles) {
       ok: true,
       version,
       files: files.size,
-      script: "js/app.js",
+      script: "js/boot.js",
       external: [],
     },
   };
@@ -111,6 +114,15 @@ function installPresentationHooks(html, version) {
   ].join("");
   if (html.includes("</body>")) return html.replace("</body>", hook + "</body>");
   return html + hook;
+}
+
+function rewriteBootPaths(text) {
+  const prefix = PPT_PREFIX + "/";
+  const roots = ["css/", "design/", "js/", "engine/", "events/", "process/", "fonts/"];
+  for (const root of roots) {
+    text = text.replaceAll('"' + root, '"' + prefix + root);
+  }
+  return text;
 }
 
 function rewriteLocalPaths(text, version) {
