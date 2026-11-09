@@ -18,7 +18,7 @@ const directories = readdirSync(documents)
   .map((name) => ({
     name,
     files: readdirSync(join(documents, name))
-      .filter((file) => /\.(docx|xlsx|xls)$/i.test(file))
+      .filter((file) => /\.(docx|xlsx|xls|pptx)$/i.test(file))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
   }));
 

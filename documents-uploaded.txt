@@ -1,1 +1,1 @@
-pending — v5 documents are in git and public/; lock after the live deploy shows version 12
+pending — v5 documents and the demo PowerPoint are in public/documents for the one upload. Lock after the live site shows them. Do not republish document binaries from Git after that.

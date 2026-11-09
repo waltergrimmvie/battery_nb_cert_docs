@@ -60,10 +60,32 @@ Desk
 The WebSocket room is unchanged. The mega menu is the live list of who
 is on the desk. Names are text, never HTML.
 
+Viewers — same routine for all three
+-------------------------------------
+Rich text, spreadsheet, and PowerPoint use the same path:
+1. Read the local version file.
+   version_text_editor.txt
+   version_spreadsheet.txt
+   version_powerpoint.txt
+2. Compare it with the remote version.txt on
+   texteditor.dev-q-prox.com
+   spreadsheet.dev-q-prox.com
+   presentation.dev-q-prox.com
+3. If the remote number is higher, download the gzip:
+   Download/rich_text_editor.gzip
+   Download/spreadsheet.gzip
+   Download/powerpoint_viewer.gzip
+4. Extract it over the viewer already held by the worker.
+5. Feed those files to the client.
+6. The iframe is opened with ?v=<that viewer's version> so the
+   version is the cache buster.
+
 Documents — one-time upload
 ---------------------------
-The Word files under documents/ are uploaded to the Cloudflare Worker
-assets (public/documents/) exactly once.
+Word, Excel, and PowerPoint files under documents/ are uploaded to
+the Cloudflare Worker assets (public/documents/) exactly once.
+The demo deck Qauditors_EU_Vehicle_Certification_Company_CN.pptx
+in General Documents is that one upload for the presentation.
 
 After that upload has landed on the live Worker:
 - Do not replace, rename, or republish those documents from Git again.
@@ -75,7 +97,7 @@ After that upload has landed on the live Worker:
   binaries from Git. They stay on the Cloudflare assets from that one
   upload.
 - Future work on the checklist or the page shell does not touch the
-  uploaded Word files.
+  uploaded Word, Excel, or PowerPoint files.
 
 Marker: documents-uploaded.txt in the repo root. When that file exists
 and contains "locked", the index script refuses to wipe or copy over
