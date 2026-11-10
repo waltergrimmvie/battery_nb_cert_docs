@@ -57,13 +57,22 @@ export function prepareGantt(rawFiles) {
   const version = new TextDecoder().decode(files.get("version.txt") || new Uint8Array()).trim();
   if (!version) throw new Error("The Gantt gzip has no version.");
 
-  // Boot derives its own base from the script URL, so only the page
-  // script needs the desk prefix. Relative loads then stay under it.
+  // The page on gantt.dev-q-prox.com derives its base from the script URL.
+  // Inside the desk that base must be the viewer prefix, or the scripts 404.
   const indexBytes = files.get("index.html");
   if (indexBytes) {
     let html = new TextDecoder().decode(indexBytes);
     html = html.replace('src="js/boot.js', 'src="' + GANTT_PREFIX + "/js/boot.js");
     files.set("index.html", new TextEncoder().encode(html));
+  }
+  const bootBytes = files.get("js/boot.js");
+  if (bootBytes) {
+    let boot = new TextDecoder().decode(bootBytes);
+    boot = boot.replace(
+      'var me = document.currentScript && document.currentScript.src;\n  var base = me ? me.replace(/js\\/boot\\.js(?:\\?.*)?$/, "") : "gantt/";',
+      'var base = "' + GANTT_PREFIX + '/";',
+    );
+    files.set("js/boot.js", new TextEncoder().encode(boot));
   }
 
   const required = ["index.html", "version.txt", "js/boot.js", "engine/import.js", "design/populate.js"];

@@ -290,7 +290,13 @@ export default {
           return Response.json(report, { headers: NO_STORE });
         }
         if (isPage) {
-          await Promise.all([ensureEditor(env), ensureSheet(env), ensurePpt(env), ensurePdf(env), ensureGantt(env)]);
+          await Promise.all([
+            ensureEditor(env).catch(() => null),
+            ensureSheet(env).catch(() => null),
+            ensurePpt(env).catch(() => null),
+            ensurePdf(env).catch(() => null),
+            ensureGantt(env).catch(() => null),
+          ]);
         } else if (isViewer && !editorReady) {
           await ensureEditor(env);
         } else if (isSheetViewer && !sheetReady) {
