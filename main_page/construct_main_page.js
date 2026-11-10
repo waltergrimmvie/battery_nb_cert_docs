@@ -279,17 +279,37 @@ async function viewerObject(slot, page) {
 }
 
 
-const GZIP_PAGE = { pdf: "/gzip/pdf", gantt: "/gzip/gantt" };
+const GZIP_PAGE = {
+  pdf: { url: "/gzip/pdf", prefix: "/viewer/pdf/pdf_viewer/", version: "/version_pdf.txt" },
+  gantt: { url: "/gzip/gantt", prefix: "/viewer/gantt/gantt_viewer/", version: "/version_gantt.txt" },
+};
+const FILE_CACHE = "battery-nb-viewer-files";
+
+async function remoteNumber(path) {
+  try {
+    const response = await fetch(path, { cache: "no-store" });
+    const text = response.ok ? (await response.text()).trim() : "";
+    return /^[0-9]+$/.test(text) ? text : "0";
+  } catch {
+    return "0";
+  }
+}
 
 async function oneGzip(kind) {
+  const spec = GZIP_PAGE[kind];
   const cache = await caches.open("battery-nb-gzip");
   const key = "/gzip/" + kind;
+  const version = await remoteNumber(spec.version);
   const hit = await cache.match(key);
-  if (hit) return new Uint8Array(await hit.arrayBuffer());
-  const response = await fetch(GZIP_PAGE[kind], { cache: "no-store" });
+  if (hit && hit.headers.get("x-viewer-version") === version && version !== "0") {
+    return new Uint8Array(await hit.arrayBuffer());
+  }
+  const response = await fetch(spec.url, { cache: "no-store" });
   if (!response.ok) throw new Error("The " + kind + " gzip could not be downloaded.");
   const bytes = new Uint8Array(await response.arrayBuffer());
-  await cache.put(key, new Response(bytes, { headers: { "content-type": "application/gzip" } }));
+  await cache.put(key, new Response(bytes, {
+    headers: { "content-type": "application/gzip", "x-viewer-version": version },
+  }));
   return bytes;
 }
 
@@ -301,7 +321,8 @@ async function unpackTarGz(bytes) {
   while (offset + 512 <= raw.length) {
     const header = raw.subarray(offset, offset + 512);
     if (header.every((b) => b === 0)) break;
-    const name = dec.decode(header.subarray(0, 100)).replace(/\0.*$/, "").replace(/^[^/]+\//, "");
+    let name = dec.decode(header.subarray(0, 100)).replace(/\0.*$/, "");
+    if (name.includes("/")) name = name.split("/").slice(1).join("/");
     const size = parseInt(dec.decode(header.subarray(124, 136)).replace(/\0.*$/, "").trim() || "0", 8) || 0;
     offset += 512;
     const data = raw.subarray(offset, offset + size);
@@ -311,26 +332,30 @@ async function unpackTarGz(bytes) {
   return files;
 }
 
-function textOf(files, name) {
-  const bytes = files.get(name);
-  return bytes ? new TextDecoder().decode(bytes) : "";
+function typeFor(name) {
+  if (name.endsWith(".js")) return "text/javascript";
+  if (name.endsWith(".css")) return "text/css";
+  if (name.endsWith(".html")) return "text/html";
+  if (name.endsWith(".svg")) return "image/svg+xml";
+  if (name.endsWith(".json")) return "application/json";
+  if (name.endsWith(".pdf")) return "application/pdf";
+  return "application/octet-stream";
 }
 
-function pageFromGzip(files, kind) {
-  const bootName = "js/boot.js";
-  let boot = textOf(files, bootName);
-  boot = boot.replace("function loadScript(path, version) {", "function loadScript(path, version) { return Promise.resolve(); }\n  function loadScriptUnused(path, version) {");
-  boot = boot.replace("function loadStyle(path, version) {", "function loadStyle(path, version) {}\n  function loadStyleUnused(path, version) {");
-  const css = [...files.keys()].filter((name) => name.endsWith(".css")).map((name) => "<style>" + textOf(files, name) + "</style>").join("");
-  const scripts = [...files.keys()].filter((name) => name.endsWith(".js") && name !== bootName);
-  const body = scripts.map((name) => "<script>" + textOf(files, name) + "<\/script>").join("");
-  const root = kind === "pdf" ? "<div id=\"pdf\"></div>" : "<div id=\"gantt\"></div>";
-  return "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" + css + "</head><body>" + root + body + "<script>" + boot + "<\/script></body></html>";
+async function storeUnpacked(kind, files) {
+  const spec = GZIP_PAGE[kind];
+  const cache = await caches.open(FILE_CACHE);
+  await Promise.all([...files.entries()].map(([name, bytes]) => cache.put(
+    spec.prefix + name,
+    new Response(bytes, { headers: { "content-type": typeFor(name) } }),
+  )));
 }
 
 async function openPacked(slot, kind) {
   if (slot.frame.dataset.shell === "1") return slot.ready;
   slot.frame.dataset.shell = "1";
+  const files = await unpackTarGz(await oneGzip(kind));
+  await storeUnpacked(kind, files);
   slot.ready = new Promise((resolve) => {
     slot.frame.addEventListener("load", () => {
       const ready = slot.frame.contentWindow && slot.frame.contentWindow.editorReady;
@@ -338,8 +363,8 @@ async function openPacked(slot, kind) {
       else resolve();
     }, { once: true });
   });
-  const files = await unpackTarGz(await oneGzip(kind));
-  slot.frame.srcdoc = pageFromGzip(files, kind);
+  const version = await remoteNumber(GZIP_PAGE[kind].version);
+  slot.frame.src = VIEWERS[kind] + "?v=" + version + "&hold=1";
   return slot.ready;
 }
 

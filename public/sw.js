@@ -45,12 +45,24 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(serveIndexed(decodeURIComponent(url.pathname.slice("/indexed/".length))));
     return;
   }
+  if (url.pathname.startsWith("/viewer/pdf/") || url.pathname.startsWith("/viewer/gantt/")) {
+    event.respondWith(localViewer(request));
+    return;
+  }
   if (url.pathname.startsWith("/viewer/")) {
     event.respondWith(freshViewer(request));
     return;
   }
   event.respondWith(networkThenCache(request));
 });
+
+async function localViewer(request) {
+  const url = new URL(request.url);
+  const cache = await caches.open("battery-nb-viewer-files");
+  const cached = await cache.match(url.pathname) || await cache.match(request);
+  if (cached) return cached;
+  return fetch(request);
+}
 
 async function freshViewer(request) {
   try {
