@@ -287,10 +287,12 @@ function openShell(slot, page) {
   fetch(versionFile, { cache: "no-store" })
     .then((response) => (response.ok ? response.text() : ""))
     .then((text) => {
-      slot.frame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&hold=1";
+      const number = String(text || "").trim();
+      const version = /^[0-9]+$/.test(number) ? number : "0";
+      slot.frame.src = page + "?v=" + version + "&hold=1";
     })
     .catch(() => {
-      slot.frame.src = page + "?hold=1";
+      slot.frame.src = page + "?v=0&hold=1";
     });
   return slot.ready;
 }

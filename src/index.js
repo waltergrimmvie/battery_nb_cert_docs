@@ -327,8 +327,8 @@ export default {
       "/version_pdf.txt": savedPdfVersion,
       "/version_gantt.txt": savedGanttVersion,
     };
-    if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname) && versionFile[url.pathname]) {
-      return new Response(String(versionFile[url.pathname]) + "\n", {
+    if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname)) {
+      return new Response(String(versionFile[url.pathname] || "0") + "\n", {
         headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE },
       });
     }
