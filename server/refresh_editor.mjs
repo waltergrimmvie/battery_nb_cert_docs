@@ -13,30 +13,17 @@ export function versionNumber(value) {
 }
 
 export async function downloadRichTextEditor(localVersion = 0) {
-  const remote = await remoteEditorVersion();
-  const local = versionNumber(localVersion);
-  if (remote <= local) {
-    return {
-      files: null,
-      report: {
-        ok: true,
-        skipped: true,
-        version: String(local),
-        remote: String(remote),
-      },
-    };
+  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
+  const remote = await fetchRemoteVersion(EDITOR_VERSION_URL, "editor");
+  const cached = await readCachedGzip("editor");
+  if (cached && cached.version >= remote) {
+    const pack = prepareEditor(readTar(await unpackGzip(cached.bytes)));
+    pack.report.cached = true;
+    return pack;
   }
-
-  const response = await fetch(EDITOR_GZIP_URL, { cache: "no-store" });
-  if (!response.ok) throw new Error("The editor download was not available (" + response.status + ").");
-  const packed = new Uint8Array(await response.arrayBuffer());
-  if (packed.length < 10 || packed[0] !== 0x1f || packed[1] !== 0x8b) {
-    throw new Error("The editor download is not a gzip file.");
-  }
-  const tarBytes = new Uint8Array(
-    await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(),
-  );
-  return prepareEditor(readTar(tarBytes));
+  const packed = await fetchGzip(EDITOR_GZIP_URL, "editor");
+  await writeCachedGzip("editor", remote, packed);
+  return prepareEditor(readTar(await unpackGzip(packed)));
 }
 
 async function remoteEditorVersion() {

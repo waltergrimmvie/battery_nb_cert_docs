@@ -1,18 +1,95 @@
-// Keeps the page installable without storing HTML or JavaScript.
-self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
-});
+// Keeps the installed page usable without a network.
+// The app shell is cached. A file opened once lives in IndexedDB
+// and is served again from /indexed/<guid>.
 
-self.addEventListener("activate", (event) => {
+const SHELL = "battery-nb-shell";
+const RUNTIME = "battery-nb-runtime";
+const DB_NAME = "battery NB worker";
+const STORE = "files";
+
+const SHELL_FILES = [
+  "/",
+  "/index.html",
+  "/styles.css",
+  "/favicon.svg",
+  "/setup/create_indexed.js",
+  "/startup/startup.js",
+  "/startup/desk.js",
+  "/database/indexed/files.js",
+  "/main_page/construct_main_page.js",
+  "/main_page/read_docx.js",
+  "/menu_bar/construct_design/construct_design.js",
+  "/menu_bar/online_users.js",
+  "/menu_bar/populate/populate.js",
+  "/__grok/manifest.webmanifest",
+];
+
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+    caches.open(SHELL).then((cache) => cache.addAll(SHELL_FILES)).then(() => self.skipWaiting()),
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  event.respondWith(fetch(event.request));
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
 });
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/indexed/")) {
+    event.respondWith(serveIndexed(decodeURIComponent(url.pathname.slice("/indexed/".length))));
+    return;
+  }
+  event.respondWith(networkThenCache(request));
+});
+
+async function networkThenCache(request) {
+  const url = new URL(request.url);
+  try {
+    const response = await fetch(request);
+    if (response && response.ok && url.pathname !== "/version.txt") {
+      const cache = await caches.open(url.pathname.startsWith("/viewer/") ? RUNTIME : SHELL);
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cached = await caches.match(request) || await caches.match(request.url.split("?")[0]);
+    if (cached) return cached;
+    if (request.mode === "navigate") {
+      const page = await caches.match("/index.html");
+      if (page) return page;
+    }
+    throw error;
+  }
+}
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "guid" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function serveIndexed(guid) {
+  const db = await openDb();
+  const record = await new Promise((resolve, reject) => {
+    const request = db.transaction(STORE, "readonly").objectStore(STORE).get(guid);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+  if (!record || !record.content) return new Response("Not stored", { status: 404 });
+  return new Response(record.content, {
+    headers: {
+      "content-type": record.type || "application/octet-stream",
+      "cache-control": "no-store",
+    },
+  });
+}

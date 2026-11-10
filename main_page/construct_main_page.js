@@ -1,3 +1,4 @@
+import { guidFor, getFile, putFile } from "../database/indexed/files.js";
 
 export function constructMainPage(root) {
   root.replaceChildren();
@@ -209,15 +210,47 @@ function showDocument(content, directory, file) {
     slot = buildViewer(kind, title);
     viewerSlots[kind] = slot;
     content.append(slot.wrap);
+  } else {
+    slot.frame.title = title;
+    slot.wrap.hidden = false;
+  }
+
+  if (directory === "General Documents") {
+    openStored(slot, page, directory, file, src);
+    return;
+  }
+  reuseOrOpen(slot, page, src);
+}
+
+function reuseOrOpen(slot, page, src) {
+  if (!slot.frame.src) {
     openViewer(slot, page, src);
     return;
   }
-
-  slot.frame.title = title;
-  slot.wrap.hidden = false;
   if (slot.frame.dataset.src === src) return;
   slot.frame.dataset.src = src;
   slot.ready = slot.ready.then(() => slot.frame.contentWindow.populate(src));
+}
+
+async function openStored(slot, page, directory, file, src) {
+  const path = directory + "/" + file;
+  const guid = await guidFor(path);
+  let record = await getFile(guid);
+  if (!record || !record.content) {
+    const response = await fetch(src, { cache: "no-store" });
+    if (!response.ok) throw new Error("The file could not be downloaded.");
+    record = {
+      guid,
+      path,
+      name: file,
+      type: response.headers.get("content-type") || "",
+      content: await response.arrayBuffer(),
+      savedAt: Date.now(),
+    };
+    await putFile(record);
+  }
+  const stored = URL.createObjectURL(new Blob([record.content], { type: record.type || undefined }));
+  reuseOrOpen(slot, page, stored);
 }
 
 function buildViewer(kind, title) {

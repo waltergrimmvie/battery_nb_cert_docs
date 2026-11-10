@@ -12,30 +12,17 @@ export const PPT_PREFIX = "/viewer/powerpoint/powerpoint_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadPowerpoint(localVersion = 0) {
-  const remote = await remotePptVersion();
-  const local = versionNumber(localVersion);
-  if (remote <= local) {
-    return {
-      files: null,
-      report: {
-        ok: true,
-        skipped: true,
-        version: String(local),
-        remote: String(remote),
-      },
-    };
+  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
+  const remote = await fetchRemoteVersion(PPT_VERSION_URL, "PowerPoint");
+  const cached = await readCachedGzip("ppt");
+  if (cached && cached.version >= remote) {
+    const pack = preparePowerpoint(readTar(await unpackGzip(cached.bytes)));
+    pack.report.cached = true;
+    return pack;
   }
-
-  const response = await fetch(PPT_GZIP_URL, { cache: "no-store" });
-  if (!response.ok) throw new Error("The PowerPoint download was not available (" + response.status + ").");
-  const packed = new Uint8Array(await response.arrayBuffer());
-  if (packed.length < 10 || packed[0] !== 0x1f || packed[1] !== 0x8b) {
-    throw new Error("The PowerPoint download is not a gzip file.");
-  }
-  const tarBytes = new Uint8Array(
-    await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(),
-  );
-  return preparePowerpoint(readTar(tarBytes));
+  const packed = await fetchGzip(PPT_GZIP_URL, "PowerPoint");
+  await writeCachedGzip("ppt", remote, packed);
+  return preparePowerpoint(readTar(await unpackGzip(packed)));
 }
 
 async function remotePptVersion() {

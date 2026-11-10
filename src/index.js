@@ -145,6 +145,7 @@ async function localGanttVersion(env) {
 // Compare version_text_editor.txt with the text editor site. A newer gzip
 // replaces the viewer in this worker before any page is returned.
 async function ensureEditor(env) {
+  if (editorFiles.size && savedEditorVersion) return { ok: true, skipped: true, version: String(savedEditorVersion), memory: true };
   if (!installingEditor) {
     const job = (async () => {
       const pack = await downloadRichTextEditor(await localEditorVersion(env));
@@ -166,6 +167,7 @@ async function ensureEditor(env) {
 // Compare version_spreadsheet.txt with spreadsheet.dev-q-prox.com. A newer
 // gzip replaces the spreadsheet viewer the same way as the rich text editor.
 async function ensureSheet(env) {
+  if (sheetFiles.size && savedSheetVersion) return { ok: true, skipped: true, version: String(savedSheetVersion), memory: true };
   if (!installingSheet) {
     const job = (async () => {
       const pack = await downloadSpreadsheet(await localSheetVersion(env));
@@ -187,6 +189,7 @@ async function ensureSheet(env) {
 // Compare version_powerpoint.txt with presentation.dev-qprox.com. A newer
 // gzip replaces the PowerPoint viewer the same way as the rich text editor.
 async function ensurePpt(env) {
+  if (pptFiles.size && savedPptVersion) return { ok: true, skipped: true, version: String(savedPptVersion), memory: true };
   if (!installingPpt) {
     const job = (async () => {
       const pack = await downloadPowerpoint(await localPptVersion(env));
@@ -208,6 +211,7 @@ async function ensurePpt(env) {
 // Compare version_pdf.txt with pdf.dev-q-prox.com. A newer gzip replaces
 // the PDF viewer the same way as the other three.
 async function ensurePdf(env) {
+  if (pdfFiles.size && savedPdfVersion) return { ok: true, skipped: true, version: String(savedPdfVersion), memory: true };
   if (!installingPdf) {
     const job = (async () => {
       const pack = await downloadPdf(await localPdfVersion(env));
@@ -227,6 +231,7 @@ async function ensurePdf(env) {
 }
 
 async function ensureGantt(env) {
+  if (ganttFiles.size && savedGanttVersion) return { ok: true, skipped: true, version: String(savedGanttVersion), memory: true };
   if (!installingGantt) {
     const job = (async () => {
       const pack = await downloadGantt(await localGanttVersion(env));
@@ -290,13 +295,8 @@ export default {
           return Response.json(report, { headers: NO_STORE });
         }
         if (isPage) {
-          await Promise.all([
-            ensureEditor(env).catch(() => null),
-            ensureSheet(env).catch(() => null),
-            ensurePpt(env).catch(() => null),
-            ensurePdf(env).catch(() => null),
-            ensureGantt(env).catch(() => null),
-          ]);
+          // The page itself does not wait. A viewer is prepared when it is
+          // opened, and a matching version is read from the colo cache.
         } else if (isViewer && !editorReady) {
           await ensureEditor(env);
         } else if (isSheetViewer && !sheetReady) {

@@ -8,6 +8,8 @@ const files = [
   "startup/startup.js",
   "startup/desk.js",
   "setup/login_user.js",
+  "setup/create_indexed.js",
+  "database/indexed/files.js",
   "main_page/construct_main_page.js",
   "main_page/read_docx.js",
   "menu_bar/construct_design/construct_design.js",

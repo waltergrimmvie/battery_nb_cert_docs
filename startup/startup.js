@@ -42,9 +42,14 @@ start().catch((error) => {
 });
 
 async function start() {
-  await refreshEditor();
-  await refreshSpreadsheet();
-  await refreshPowerpoint();
+  // Version checks run together. A miss, or no network, does not stop the desk.
+  await Promise.all([
+    refreshEditor(),
+    refreshSpreadsheet(),
+    refreshPowerpoint(),
+    refreshPdf(),
+    refreshGantt(),
+  ]);
   const existing = await readIndexedName();
   if (existing) {
     await enterDesk(existing);
@@ -54,31 +59,33 @@ async function start() {
   await enterDesk(name);
 }
 
-async function refreshEditor() {
-  root.textContent = "Checking the editor…";
-  const response = await fetch("/editor/refresh", { method: "POST", cache: "no-store" });
-  const report = await response.json().catch(() => null);
-  if (!response.ok || !report?.ok) {
-    throw new Error(report?.error || "The rich text editor could not be downloaded.");
+async function refreshViewer(path) {
+  try {
+    const response = await fetch(path, { method: "POST", cache: "no-store" });
+    return response.ok;
+  } catch {
+    return false;
   }
+}
+
+async function refreshEditor() {
+  return refreshViewer("/editor/refresh");
 }
 
 async function refreshSpreadsheet() {
-  root.textContent = "Checking the spreadsheet…";
-  const response = await fetch("/spreadsheet/refresh", { method: "POST", cache: "no-store" });
-  const report = await response.json().catch(() => null);
-  if (!response.ok || !report?.ok) {
-    throw new Error(report?.error || "The spreadsheet could not be downloaded.");
-  }
+  return refreshViewer("/spreadsheet/refresh");
 }
 
 async function refreshPowerpoint() {
-  root.textContent = "Checking the PowerPoint viewer…";
-  const response = await fetch("/powerpoint/refresh", { method: "POST", cache: "no-store" });
-  const report = await response.json().catch(() => null);
-  if (!response.ok || !report?.ok) {
-    throw new Error(report?.error || "The PowerPoint viewer could not be downloaded.");
-  }
+  return refreshViewer("/powerpoint/refresh");
+}
+
+async function refreshPdf() {
+  return refreshViewer("/pdf/refresh");
+}
+
+async function refreshGantt() {
+  return refreshViewer("/gantt/refresh");
 }
 
 async function enterDesk(name) {

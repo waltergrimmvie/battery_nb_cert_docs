@@ -108,3 +108,11 @@ public/documents/.
 The EU Battery Regulation PDF in General Documents is a one-time upload, the same as the other three demo files.
 One pane is built per viewer type. A later file of the same type calls populate on the pane already open. It is not built again.
 The Harbor Studio Gantt in General Documents is a one-time upload, the same as the other demo files.
+
+Indexed files
+- setup/create_indexed.js runs before startup and creates the database
+  "battery NB worker" with a files table keyed by guid.
+- database/indexed/files.js reads and writes that table.
+- A General Documents file is stored on first open. The next open is read
+  from that table and handed to populate.
+- The service worker caches the page so the installed app opens offline.

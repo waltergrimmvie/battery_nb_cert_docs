@@ -12,30 +12,17 @@ export const SHEET_PREFIX = "/viewer/spreadsheet/spreadsheet_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadSpreadsheet(localVersion = 0) {
-  const remote = await remoteSheetVersion();
-  const local = versionNumber(localVersion);
-  if (remote <= local) {
-    return {
-      files: null,
-      report: {
-        ok: true,
-        skipped: true,
-        version: String(local),
-        remote: String(remote),
-      },
-    };
+  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
+  const remote = await fetchRemoteVersion(SHEET_VERSION_URL, "spreadsheet");
+  const cached = await readCachedGzip("sheet");
+  if (cached && cached.version >= remote) {
+    const pack = prepareSpreadsheet(readTar(await unpackGzip(cached.bytes)));
+    pack.report.cached = true;
+    return pack;
   }
-
-  const response = await fetch(SHEET_GZIP_URL, { cache: "no-store" });
-  if (!response.ok) throw new Error("The spreadsheet download was not available (" + response.status + ").");
-  const packed = new Uint8Array(await response.arrayBuffer());
-  if (packed.length < 10 || packed[0] !== 0x1f || packed[1] !== 0x8b) {
-    throw new Error("The spreadsheet download is not a gzip file.");
-  }
-  const tarBytes = new Uint8Array(
-    await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(),
-  );
-  return prepareSpreadsheet(readTar(tarBytes));
+  const packed = await fetchGzip(SHEET_GZIP_URL, "spreadsheet");
+  await writeCachedGzip("sheet", remote, packed);
+  return prepareSpreadsheet(readTar(await unpackGzip(packed)));
 }
 
 async function remoteSheetVersion() {

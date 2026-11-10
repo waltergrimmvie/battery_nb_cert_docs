@@ -12,30 +12,17 @@ export const GANTT_PREFIX = "/viewer/gantt/gantt_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadGantt(localVersion = 0) {
-  const remote = await remoteGanttVersion();
-  const local = versionNumber(localVersion);
-  if (remote <= local) {
-    return {
-      files: null,
-      report: {
-        ok: true,
-        skipped: true,
-        version: String(local),
-        remote: String(remote),
-      },
-    };
+  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
+  const remote = await fetchRemoteVersion(GANTT_VERSION_URL, "Gantt");
+  const cached = await readCachedGzip("gantt");
+  if (cached && cached.version >= remote) {
+    const pack = prepareGantt(readTar(await unpackGzip(cached.bytes)));
+    pack.report.cached = true;
+    return pack;
   }
-
-  const response = await fetch(GANTT_GZIP_URL, { cache: "no-store" });
-  if (!response.ok) throw new Error("The Gantt download was not available (" + response.status + ").");
-  const packed = new Uint8Array(await response.arrayBuffer());
-  if (packed.length < 10 || packed[0] !== 0x1f || packed[1] !== 0x8b) {
-    throw new Error("The Gantt download is not a gzip file.");
-  }
-  const tarBytes = new Uint8Array(
-    await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(),
-  );
-  return prepareGantt(readTar(tarBytes));
+  const packed = await fetchGzip(GANTT_GZIP_URL, "Gantt");
+  await writeCachedGzip("gantt", remote, packed);
+  return prepareGantt(readTar(await unpackGzip(packed)));
 }
 
 async function remoteGanttVersion() {
