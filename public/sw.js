@@ -32,7 +32,10 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.delete(RUNTIME).then(() => self.clients.claim()),
+    caches.delete(RUNTIME)
+      .then(() => caches.delete("battery-nb-viewer-files"))
+      .then(() => caches.delete("battery-nb-gzip"))
+      .then(() => self.clients.claim()),
   );
 });
 
