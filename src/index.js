@@ -5,6 +5,7 @@ import { downloadSpreadsheet, SHEET_PREFIX } from "../server/refresh_spreadsheet
 import { downloadPowerpoint, PPT_PREFIX } from "../server/refresh_powerpoint.mjs";
 import { downloadPdf, PDF_PREFIX } from "../server/refresh_pdf.mjs";
 import { downloadGantt, GANTT_PREFIX } from "../server/refresh_gantt.mjs";
+import { readCachedGzip } from "../server/viewer_cache.mjs";
 
 export { PresenceRoom };
 
@@ -259,6 +260,20 @@ export default {
       }
       const id = env.PRESENCE.idFromName("battery-nb-cert-desk");
       return env.PRESENCE.get(id).fetch(request);
+    }
+
+    const gzipKind = { "/gzip/pdf": ["pdf", ensurePdf], "/gzip/gantt": ["gantt", ensureGantt] }[url.pathname];
+    if (gzipKind) {
+      await gzipKind[1](env);
+      const cached = await readCachedGzip(gzipKind[0]);
+      if (!cached) return new Response("The gzip is not ready.", { status: 502, headers: NO_STORE });
+      return new Response(cached.bytes, {
+        headers: {
+          "content-type": "application/gzip",
+          "x-viewer-version": String(cached.version),
+          ...NO_STORE,
+        },
+      });
     }
 
     const isPage = url.pathname === "/" || url.pathname === "/index.html";
