@@ -79,12 +79,20 @@ function openDb() {
 }
 
 async function serveIndexed(guid) {
+  const wantsJson = guid.endsWith(".json");
+  const key = wantsJson ? guid.slice(0, -5) : guid;
   const db = await openDb();
   const record = await new Promise((resolve, reject) => {
-    const request = db.transaction(STORE, "readonly").objectStore(STORE).get(guid);
+    const request = db.transaction(STORE, "readonly").objectStore(STORE).get(key);
     request.onsuccess = () => resolve(request.result || null);
     request.onerror = () => reject(request.error);
   });
+  if (wantsJson) {
+    if (!record || !record.json) return new Response("JSON not stored", { status: 404 });
+    return new Response(JSON.stringify(record.json), {
+      headers: { "content-type": "application/json", "cache-control": "no-store" },
+    });
+  }
   if (!record || !record.content) return new Response("Not stored", { status: 404 });
   return new Response(record.content, {
     headers: {

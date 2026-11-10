@@ -2,6 +2,7 @@
 // the remote number is higher than the one saved in the root.
 
 import { versionNumber } from "./refresh_editor.mjs";
+import { acceptStoredJson } from "./json_populate.mjs";
 
 export { versionNumber };
 
@@ -46,6 +47,10 @@ export function prepareGantt(rawFiles) {
 
   // The page on gantt.dev-q-prox.com derives its base from the script URL.
   // Inside the desk that base must be the viewer prefix, or the scripts 404.
+  const populateBytes = files.get("design/populate.js");
+  if (populateBytes) {
+    files.set("design/populate.js", new TextEncoder().encode(acceptStoredJson(new TextDecoder().decode(populateBytes))));
+  }
   const indexBytes = files.get("index.html");
   if (indexBytes) {
     let html = new TextDecoder().decode(indexBytes);

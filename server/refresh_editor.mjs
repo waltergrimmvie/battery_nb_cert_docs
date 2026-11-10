@@ -4,6 +4,7 @@
 export const EDITOR_VERSION_URL = "https://texteditor.dev-q-prox.com/version.txt";
 export const EDITOR_GZIP_URL = "https://texteditor.dev-q-prox.com/Download/rich_text_editor.gzip";
 export const VIEWER_PREFIX = "/viewer/rich_text/rich_text_viewer";
+import { acceptStoredJson } from "./json_populate.mjs";
 
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css"]);
 
@@ -47,6 +48,7 @@ export function prepareEditor(rawFiles) {
   if (!boot) throw new Error("The editor gzip has no public/paint/boot.js.");
   let source = new TextDecoder().decode(boot);
   source = installViewerHooks(source);
+  source = acceptStoredJson(source);
   source = rewriteLocalPaths(source);
   files.set(bootPath, new TextEncoder().encode(source));
 

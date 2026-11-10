@@ -2,6 +2,7 @@
 // remote number is higher than the one saved in the root.
 
 import { versionNumber } from "./refresh_editor.mjs";
+import { acceptStoredJson } from "./json_populate.mjs";
 
 export { versionNumber };
 
@@ -53,6 +54,7 @@ export function prepareSpreadsheet(rawFiles) {
       text = text.replaceAll('src="/public/sheet/boot.js', 'src="./public/sheet/boot.js');
     }
     text = rewriteLocalPaths(text);
+    if (rel === bootPath) text = acceptStoredJson(text);
     files.set(rel, new TextEncoder().encode(text));
   }
 

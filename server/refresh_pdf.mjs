@@ -2,6 +2,7 @@
 // the remote number is higher than the one saved in the root.
 
 import { versionNumber } from "./refresh_editor.mjs";
+import { acceptStoredJson } from "./json_populate.mjs";
 
 export { versionNumber };
 
@@ -48,7 +49,7 @@ export function preparePdf(rawFiles) {
     const ext = extension(rel);
     if (!TEXT_EXT.has(ext)) continue;
     let text = new TextDecoder().decode(bytes);
-    if (rel === "js/boot.js") text = rewriteBootPaths(text);
+    if (rel === "js/boot.js") text = acceptStoredJson(rewriteBootPaths(text));
     text = rewriteLocalPaths(text, version);
     files.set(rel, new TextEncoder().encode(text));
   }

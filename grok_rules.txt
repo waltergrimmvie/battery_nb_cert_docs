@@ -116,3 +116,8 @@ Indexed files
 - A General Documents file is stored on first open. The next open is read
   from that table and handed to populate.
 - The service worker caches the page so the installed app opens offline.
+
+Converted JSON
+- A file is stored with its route, including the directory.
+- The first open imports it. The converted JSON is saved on that record.
+- The next populate reads that JSON. It does not import the file again.

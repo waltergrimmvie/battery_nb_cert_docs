@@ -215,11 +215,7 @@ function showDocument(content, directory, file) {
     slot.wrap.hidden = false;
   }
 
-  if (directory === "General Documents") {
-    openStored(slot, page, directory, file, src);
-    return;
-  }
-  reuseOrOpen(slot, page, src);
+  openStored(slot, page, directory, file, src);
 }
 
 function reuseOrOpen(slot, page, src) {
@@ -236,21 +232,45 @@ async function openStored(slot, page, directory, file, src) {
   const path = directory + "/" + file;
   const guid = await guidFor(path);
   let record = await getFile(guid);
+  if (record && record.json) {
+    reuseOrOpen(slot, page, await storedJsonUrl(guid, record.json));
+    return;
+  }
   if (!record || !record.content) {
     const response = await fetch(src, { cache: "no-store" });
     if (!response.ok) throw new Error("The file could not be downloaded.");
     record = {
       guid,
       path,
+      directory,
       name: file,
+      route: src,
       type: response.headers.get("content-type") || "",
       content: await response.arrayBuffer(),
       savedAt: Date.now(),
     };
     await putFile(record);
+  } else if (record.route !== src || record.directory !== directory) {
+    record.route = src;
+    record.directory = directory;
+    await putFile(record);
   }
-  const stored = URL.createObjectURL(new Blob([record.content], { type: record.type || undefined }));
-  reuseOrOpen(slot, page, stored);
+  const original = URL.createObjectURL(new Blob([record.content], { type: record.type || undefined }));
+  reuseOrOpen(slot, page, original);
+  await slot.ready;
+  const win = slot.frame.contentWindow;
+  const doc = win && win.__lastDocument;
+  if (!doc) return;
+  record.json = doc;
+  record.savedAt = Date.now();
+  await putFile(record);
+}
+
+async function storedJsonUrl(guid, json) {
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    return "/indexed/" + guid + ".json";
+  }
+  return URL.createObjectURL(new Blob([JSON.stringify(json)], { type: "application/json" }));
 }
 
 function buildViewer(kind, title) {

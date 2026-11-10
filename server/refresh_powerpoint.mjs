@@ -2,6 +2,7 @@
 // the remote number is higher than the one saved in the root.
 
 import { versionNumber } from "./refresh_editor.mjs";
+import { acceptStoredJson } from "./json_populate.mjs";
 
 export { versionNumber };
 
@@ -49,7 +50,7 @@ export function preparePowerpoint(rawFiles) {
     if (!TEXT_EXT.has(ext)) continue;
     let text = new TextDecoder().decode(bytes);
     if (rel === "index.html") text = installPresentationHooks(text);
-    if (rel === "js/boot.js") text = patchBoot(rewriteBootPaths(text));
+    if (rel === "js/boot.js") text = acceptStoredJson(patchBoot(rewriteBootPaths(text)));
     if (rel === "js/app.js") text = patchApp(text);
     if (rel !== "js/boot.js") text = rewriteLocalPaths(text, version);
     files.set(rel, new TextEncoder().encode(text));
