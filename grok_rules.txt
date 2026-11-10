@@ -62,7 +62,7 @@ is on the desk. Names are text, never HTML.
 
 Viewers — one scheme
 ---------------------
-Rich text, spreadsheet, PowerPoint, and PDF use the same path, in the
+Rich text, spreadsheet, PowerPoint, PDF, and Gantt use the same path, in the
 viewer repository and in this desk.
 
 Viewer repository:
@@ -77,7 +77,7 @@ Viewer repository:
 
 This desk:
 - version_text_editor.txt, version_spreadsheet.txt, version_powerpoint.txt,
-  and version_pdf.txt are compared with the remote version.txt.
+  version_pdf.txt, and version_gantt.txt are compared with the remote version.txt.
 - A higher remote number downloads the gzip and extracts it over the
   viewer already held here.
 - The iframe is opened with ?v=<downloaded version>&src=<document>.
@@ -106,3 +106,5 @@ Marker: documents-uploaded.txt in the repo root. When that file exists
 and contains "locked", the index script refuses to wipe or copy over
 public/documents/.
 The EU Battery Regulation PDF in General Documents is a one-time upload, the same as the other three demo files.
+One pane is built per viewer type. A later file of the same type calls populate on the pane already open. It is not built again.
+The Harbor Studio Gantt in General Documents is a one-time upload, the same as the other demo files.

@@ -1,0 +1,408 @@
+{
+  "title": "Harbor Studio fit-out",
+  "statusDate": "2026-10-16",
+  "rules": [
+    {
+      "type": "FS",
+      "name": "Finish to Start",
+      "text": "The successor starts after the predecessor finishes."
+    },
+    {
+      "type": "SS",
+      "name": "Start to Start",
+      "text": "The successor starts when the predecessor starts."
+    },
+    {
+      "type": "FF",
+      "name": "Finish to Finish",
+      "text": "The successor finishes when the predecessor finishes."
+    },
+    {
+      "type": "SF",
+      "name": "Start to Finish",
+      "text": "The successor finishes when the predecessor starts."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "name": "Harbor Studio fit-out",
+      "level": 0,
+      "start": "2026-09-14",
+      "end": "2026-11-20",
+      "duration": 68,
+      "progress": 0,
+      "preds": []
+    },
+    {
+      "id": "t2",
+      "name": "Site and permits",
+      "level": 1,
+      "start": "2026-09-14",
+      "end": "2026-09-29",
+      "duration": 16,
+      "progress": 0,
+      "preds": []
+    },
+    {
+      "id": "t3",
+      "name": "Measured survey",
+      "level": 2,
+      "start": "2026-09-14",
+      "end": "2026-09-18",
+      "duration": 5,
+      "progress": 100,
+      "preds": []
+    },
+    {
+      "id": "t4",
+      "name": "Permit pack",
+      "level": 2,
+      "start": "2026-09-19",
+      "end": "2026-09-28",
+      "duration": 10,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t3",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t5",
+      "name": "Permit decision",
+      "level": 2,
+      "milestone": true,
+      "start": "2026-09-29",
+      "end": "2026-09-29",
+      "duration": 0,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t4",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t6",
+      "name": "Design",
+      "level": 1,
+      "start": "2026-09-16",
+      "end": "2026-10-08",
+      "duration": 23,
+      "progress": 0,
+      "preds": []
+    },
+    {
+      "id": "t7",
+      "name": "Concept set",
+      "level": 2,
+      "start": "2026-09-16",
+      "end": "2026-09-23",
+      "duration": 8,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t3",
+          "type": "SS",
+          "lag": 2
+        }
+      ]
+    },
+    {
+      "id": "t8",
+      "name": "Technical drawings",
+      "level": 2,
+      "start": "2026-09-24",
+      "end": "2026-10-05",
+      "duration": 12,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t7",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t9",
+      "name": "Issue set",
+      "level": 2,
+      "start": "2026-10-02",
+      "end": "2026-10-05",
+      "duration": 4,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t8",
+          "type": "FF",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t10",
+      "name": "Client sign-off",
+      "level": 2,
+      "start": "2026-10-06",
+      "end": "2026-10-08",
+      "duration": 3,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t9",
+          "type": "FS",
+          "lag": 0
+        },
+        {
+          "id": "t5",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t11",
+      "name": "Procurement",
+      "level": 1,
+      "start": "2026-10-03",
+      "end": "2026-10-26",
+      "duration": 24,
+      "progress": 0,
+      "preds": []
+    },
+    {
+      "id": "t12",
+      "name": "Long-lead order",
+      "level": 2,
+      "start": "2026-10-03",
+      "end": "2026-10-06",
+      "duration": 4,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t5",
+          "type": "FS",
+          "lag": 3
+        }
+      ]
+    },
+    {
+      "id": "t13",
+      "name": "Fabrication watch",
+      "level": 2,
+      "start": "2026-10-05",
+      "end": "2026-10-24",
+      "duration": 20,
+      "progress": 55,
+      "preds": [
+        {
+          "id": "t12",
+          "type": "SS",
+          "lag": 2
+        }
+      ]
+    },
+    {
+      "id": "t14",
+      "name": "Site delivery",
+      "level": 2,
+      "start": "2026-10-25",
+      "end": "2026-10-26",
+      "duration": 2,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t13",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t15",
+      "name": "Construction",
+      "level": 1,
+      "start": "2026-10-06",
+      "end": "2026-11-13",
+      "duration": 39,
+      "progress": 0,
+      "preds": []
+    },
+    {
+      "id": "t16",
+      "name": "Strip-out",
+      "level": 2,
+      "start": "2026-10-06",
+      "end": "2026-10-11",
+      "duration": 6,
+      "progress": 100,
+      "preds": [
+        {
+          "id": "t5",
+          "type": "FS",
+          "lag": 0
+        },
+        {
+          "id": "t10",
+          "type": "SS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t17",
+      "name": "Services rough-in",
+      "level": 2,
+      "start": "2026-10-12",
+      "end": "2026-10-20",
+      "duration": 9,
+      "progress": 45,
+      "assignee": "Mara",
+      "resource": "Electrical",
+      "status": "active",
+      "priority": "high",
+      "cost": 4200,
+      "color": "#38bdf8",
+      "notes": "First fix only",
+      "baselineStart": "2026-10-12",
+      "baselineEnd": "2026-10-20",
+      "constraint": "SNET",
+      "constraintDate": "2026-10-12",
+      "preds": [
+        {
+          "id": "t16",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t18",
+      "name": "Joinery install",
+      "level": 2,
+      "start": "2026-10-27",
+      "end": "2026-11-03",
+      "duration": 8,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t17",
+          "type": "SS",
+          "lag": 4
+        },
+        {
+          "id": "t14",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t19",
+      "name": "Finishes",
+      "level": 2,
+      "start": "2026-11-03",
+      "end": "2026-11-09",
+      "duration": 7,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t18",
+          "type": "FS",
+          "lag": -1
+        }
+      ]
+    },
+    {
+      "id": "t20",
+      "name": "Snagging",
+      "level": 2,
+      "start": "2026-11-10",
+      "end": "2026-11-13",
+      "duration": 4,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t19",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t21",
+      "name": "Handover",
+      "level": 1,
+      "start": "2026-11-11",
+      "end": "2026-11-20",
+      "duration": 10,
+      "progress": 0,
+      "preds": []
+    },
+    {
+      "id": "t22",
+      "name": "Commission systems",
+      "level": 2,
+      "start": "2026-11-14",
+      "end": "2026-11-19",
+      "duration": 6,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t17",
+          "type": "FF",
+          "lag": 0
+        },
+        {
+          "id": "t20",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t23",
+      "name": "Night cover",
+      "level": 2,
+      "start": "2026-11-11",
+      "end": "2026-11-14",
+      "duration": 4,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t22",
+          "type": "SF",
+          "lag": 0
+        }
+      ]
+    },
+    {
+      "id": "t24",
+      "name": "Open the studio",
+      "level": 2,
+      "milestone": true,
+      "start": "2026-11-20",
+      "end": "2026-11-20",
+      "duration": 0,
+      "progress": 0,
+      "preds": [
+        {
+          "id": "t22",
+          "type": "FS",
+          "lag": 0
+        },
+        {
+          "id": "t23",
+          "type": "FS",
+          "lag": 0
+        }
+      ]
+    }
+  ]
+}

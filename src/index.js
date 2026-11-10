@@ -4,6 +4,7 @@ import { downloadRichTextEditor, versionNumber, VIEWER_PREFIX } from "../server/
 import { downloadSpreadsheet, SHEET_PREFIX } from "../server/refresh_spreadsheet.mjs";
 import { downloadPowerpoint, PPT_PREFIX } from "../server/refresh_powerpoint.mjs";
 import { downloadPdf, PDF_PREFIX } from "../server/refresh_pdf.mjs";
+import { downloadGantt, GANTT_PREFIX } from "../server/refresh_gantt.mjs";
 
 export { PresenceRoom };
 
@@ -34,6 +35,9 @@ const FILE_TYPE = {
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ".pdf": "application/pdf",
+  ".json": "application/json",
+  ".csv": "text/csv",
+  ".xml": "application/xml",
   ".xls": "application/vnd.ms-excel",
 };
 
@@ -53,6 +57,10 @@ let pdfFiles = new Map();
 let savedPdfVersion = 0;
 let pdfReady = false;
 let installingPdf = null;
+let ganttFiles = new Map();
+let savedGanttVersion = 0;
+let ganttReady = false;
+let installingGantt = null;
 
 function editorFile(pathname) {
   if (!pathname.startsWith(VIEWER_PREFIX + "/")) return null;
@@ -72,6 +80,11 @@ function pptFile(pathname) {
 function pdfFile(pathname) {
   if (!pathname.startsWith(PDF_PREFIX + "/")) return null;
   return pdfFiles.get(pathname.slice(PDF_PREFIX.length + 1)) || null;
+}
+
+function ganttFile(pathname) {
+  if (!pathname.startsWith(GANTT_PREFIX + "/")) return null;
+  return ganttFiles.get(pathname.slice(GANTT_PREFIX.length + 1)) || null;
 }
 
 async function localEditorVersion(env) {
@@ -116,6 +129,17 @@ async function localPdfVersion(env) {
     savedPdfVersion = 0;
   }
   return savedPdfVersion;
+}
+
+async function localGanttVersion(env) {
+  if (savedGanttVersion) return savedGanttVersion;
+  try {
+    const stored = await env.ASSETS.fetch(new Request("https://desk.local/version_gantt.txt"));
+    if (stored.ok) savedGanttVersion = versionNumber(await stored.text());
+  } catch {
+    savedGanttVersion = 0;
+  }
+  return savedGanttVersion;
 }
 
 // Compare version_text_editor.txt with the text editor site. A newer gzip
@@ -202,6 +226,25 @@ async function ensurePdf(env) {
   return installingPdf;
 }
 
+async function ensureGantt(env) {
+  if (!installingGantt) {
+    const job = (async () => {
+      const pack = await downloadGantt(await localGanttVersion(env));
+      if (!pack.report.skipped && pack.files) {
+        ganttFiles = pack.files;
+        savedGanttVersion = versionNumber(pack.report.version);
+      }
+      ganttReady = true;
+      return pack.report;
+    })();
+    installingGantt = job;
+    job.finally(() => {
+      if (installingGantt === job) installingGantt = null;
+    });
+  }
+  return installingGantt;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -218,12 +261,18 @@ export default {
     const isSheetRefresh = url.pathname === "/spreadsheet/refresh";
     const isPptRefresh = url.pathname === "/powerpoint/refresh";
     const isPdfRefresh = url.pathname === "/pdf/refresh";
+    const isGanttRefresh = url.pathname === "/gantt/refresh";
     const isViewer = url.pathname.startsWith(VIEWER_PREFIX + "/");
     const isSheetViewer = url.pathname.startsWith(SHEET_PREFIX + "/");
     const isPptViewer = url.pathname.startsWith(PPT_PREFIX + "/");
     const isPdfViewer = url.pathname.startsWith(PDF_PREFIX + "/");
-    if (isPage || isRefresh || isSheetRefresh || isPptRefresh || isPdfRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady) || (isPptViewer && !pptReady) || (isPdfViewer && !pdfReady)) {
+    const isGanttViewer = url.pathname.startsWith(GANTT_PREFIX + "/");
+    if (isPage || isRefresh || isSheetRefresh || isPptRefresh || isPdfRefresh || isGanttRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady) || (isPptViewer && !pptReady) || (isPdfViewer && !pdfReady) || (isGanttViewer && !ganttReady)) {
       try {
+        if (isGanttRefresh) {
+          const report = await ensureGantt(env);
+          return Response.json(report, { headers: NO_STORE });
+        }
         if (isPdfRefresh) {
           const report = await ensurePdf(env);
           return Response.json(report, { headers: NO_STORE });
@@ -241,7 +290,7 @@ export default {
           return Response.json(report, { headers: NO_STORE });
         }
         if (isPage) {
-          await Promise.all([ensureEditor(env), ensureSheet(env), ensurePpt(env), ensurePdf(env)]);
+          await Promise.all([ensureEditor(env), ensureSheet(env), ensurePpt(env), ensurePdf(env), ensureGantt(env)]);
         } else if (isViewer && !editorReady) {
           await ensureEditor(env);
         } else if (isSheetViewer && !sheetReady) {
@@ -250,10 +299,12 @@ export default {
           await ensurePpt(env);
         } else if (isPdfViewer && !pdfReady) {
           await ensurePdf(env);
+        } else if (isGanttViewer && !ganttReady) {
+          await ensureGantt(env);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Download failed.";
-        if (isRefresh || isSheetRefresh || isPptRefresh || isPdfRefresh) {
+        if (isRefresh || isSheetRefresh || isPptRefresh || isPdfRefresh || isGanttRefresh) {
           return Response.json({ ok: false, error: message }, { status: 502, headers: NO_STORE });
         }
         return new Response(message, {
@@ -268,6 +319,7 @@ export default {
       "/version_spreadsheet.txt": savedSheetVersion,
       "/version_powerpoint.txt": savedPptVersion,
       "/version_pdf.txt": savedPdfVersion,
+      "/version_gantt.txt": savedGanttVersion,
     };
     if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname) && versionFile[url.pathname]) {
       return new Response(String(versionFile[url.pathname]) + "\n", {
@@ -275,7 +327,7 @@ export default {
       });
     }
 
-    const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname) || pdfFile(url.pathname);
+    const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname) || pdfFile(url.pathname) || ganttFile(url.pathname);
     if (fresh) {
       const type = FILE_TYPE[url.pathname.slice(url.pathname.lastIndexOf(".")).toLowerCase()] || "application/octet-stream";
       return new Response(fresh, { headers: { "content-type": type, ...NO_STORE } });

@@ -86,6 +86,7 @@ const FILE_LABELS = {
   "EU_Battery_17065_Detailed_Checklist_v5_Compressed.xlsx": "EU Battery 17065 Detailed Checklist (Excel)",
   "Qauditors_EU_Vehicle_Certification_Company_CN.pptx": "EU Vehicle Certification Brief (PowerPoint)",
   "EU_Battery_Regulation_with_Client_Index_Framed.pdf": "EU Battery Regulation (PDF)",
+  "Harbor_Studio_fit-out.json": "Harbor Studio fit-out (Gantt)",
 };
 
 function fillTree(nav, tree, content, directories) {
@@ -137,7 +138,7 @@ function fillTree(nav, tree, content, directories) {
 
 function fileLabel(file) {
   if (FILE_LABELS[file]) return FILE_LABELS[file];
-  return file.replace(/\.(docx|xlsx|xls|pptx|pdf)$/i, "");
+  return file.replace(/\.(docx|xlsx|xls|pptx|pdf|json|csv|xml)$/i, "");
 }
 
 function showIntro(content) {
@@ -155,16 +156,23 @@ function showIntro(content) {
   content.append(article);
 }
 
-let viewerFrame = null;
-let viewerKindOpen = "";
-let viewerReady = Promise.resolve();
 let workspaceEl = null;
+const viewerSlots = {};
 
 const VIEWERS = {
   doc: "/viewer/rich_text/rich_text_viewer/index.html",
   sheet: "/viewer/spreadsheet/spreadsheet_viewer/index.html",
   ppt: "/viewer/powerpoint/powerpoint_viewer/index.html",
   pdf: "/viewer/pdf/pdf_viewer/index.html",
+  gantt: "/viewer/gantt/gantt_viewer/index.html",
+};
+
+const VERSION_FILES = {
+  doc: "/version_text_editor.txt",
+  sheet: "/version_spreadsheet.txt",
+  ppt: "/version_powerpoint.txt",
+  pdf: "/version_pdf.txt",
+  gantt: "/version_gantt.txt",
 };
 
 function viewerKind(file) {
@@ -172,6 +180,7 @@ function viewerKind(file) {
   if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "sheet";
   if (lower.endsWith(".pptx")) return "ppt";
   if (lower.endsWith(".pdf")) return "pdf";
+  if (lower.endsWith(".json") || lower.endsWith(".csv") || lower.endsWith(".xml")) return "gantt";
   return "doc";
 }
 
@@ -187,83 +196,102 @@ function showDocument(content, directory, file) {
   const title = fileLabel(file);
   const kind = viewerKind(file);
   const page = VIEWERS[kind];
-  if (!viewerFrame || !viewerFrame.isConnected || viewerKindOpen !== kind) {
-    content.replaceChildren();
-    const viewer = document.createElement("div");
-    viewer.className = "rich-text-viewer";
 
-    if (kind === "ppt") {
-      const bar = document.createElement("div");
-      bar.className = "ppt-bar";
-      const versionLabel = document.createElement("span");
-      versionLabel.className = "ppt-version";
-      versionLabel.textContent = "Version —";
-      const widthLabel = document.createElement("label");
-      widthLabel.textContent = "Preview width";
-      const widthSlider = document.createElement("input");
-      widthSlider.type = "range";
-      widthSlider.min = "180";
-      widthSlider.max = "480";
-      widthSlider.value = "260";
-      widthSlider.setAttribute("aria-label", "Preview page width");
-      widthSlider.addEventListener("input", () => {
-        viewer.style.setProperty("--ppt-preview", widthSlider.value + "px");
-      });
-      widthLabel.append(widthSlider);
-      bar.append(versionLabel, widthLabel);
-      viewer.append(bar);
-      fetch("/version_powerpoint.txt", { cache: "no-store" })
-        .then((r) => (r.ok ? r.text() : ""))
-        .then((t) => { versionLabel.textContent = "Version " + (t.trim() || "1"); })
-        .catch(() => {});
-    }
+  const intro = content.querySelector(".note");
+  if (intro) intro.remove();
 
-    viewerFrame = document.createElement("iframe");
-    viewerFrame.className = "rich-text-frame";
-    viewerFrame.title = title;
-    viewer.append(viewerFrame);
+  for (const [name, slot] of Object.entries(viewerSlots)) {
+    slot.wrap.hidden = name !== kind;
+  }
 
-    if (kind === "ppt") {
-      const nav = document.createElement("div");
-      nav.className = "ppt-nav";
-      const prev = document.createElement("button");
-      prev.type = "button";
-      prev.textContent = "Previous";
-      const next = document.createElement("button");
-      next.type = "button";
-      next.textContent = "Next";
-      prev.addEventListener("click", () => postSlide(viewerFrame, -1));
-      next.addEventListener("click", () => postSlide(viewerFrame, 1));
-      nav.append(prev, next);
-      viewer.append(nav);
-    }
-
-    content.append(viewer);
-    viewerKindOpen = kind;
-    viewerFrame.dataset.src = src;
-    viewerReady = new Promise((resolve) => {
-      viewerFrame.addEventListener("load", () => {
-        const ready = viewerFrame.contentWindow && viewerFrame.contentWindow.editorReady;
-        if (ready && typeof ready.then === "function") ready.then(resolve);
-        else resolve();
-      }, { once: true });
-    });
-    const versionFile = kind === "ppt" ? "/version_powerpoint.txt" : kind === "sheet" ? "/version_spreadsheet.txt" : kind === "pdf" ? "/version_pdf.txt" : "/version_text_editor.txt";
-    fetch(versionFile, { cache: "no-store" })
-      .then((response) => (response.ok ? response.text() : ""))
-      .then((text) => {
-        viewerFrame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&src=" + encodeURIComponent(src);
-      })
-      .catch(() => {
-        viewerFrame.src = page + "?src=" + encodeURIComponent(src);
-      });
+  let slot = viewerSlots[kind];
+  if (!slot) {
+    slot = buildViewer(kind, title);
+    viewerSlots[kind] = slot;
+    content.append(slot.wrap);
+    openViewer(slot, page, src);
     return;
   }
 
-  viewerFrame.title = title;
-  if (viewerFrame.dataset.src === src) return;
-  viewerFrame.dataset.src = src;
-  viewerReady = viewerReady.then(() => viewerFrame.contentWindow.populate(src));
+  slot.frame.title = title;
+  slot.wrap.hidden = false;
+  if (slot.frame.dataset.src === src) return;
+  slot.frame.dataset.src = src;
+  slot.ready = slot.ready.then(() => slot.frame.contentWindow.populate(src));
+}
+
+function buildViewer(kind, title) {
+  const wrap = document.createElement("div");
+  wrap.className = "rich-text-viewer";
+  wrap.dataset.viewer = kind;
+
+  if (kind === "ppt") {
+    const bar = document.createElement("div");
+    bar.className = "ppt-bar";
+    const versionLabel = document.createElement("span");
+    versionLabel.className = "ppt-version";
+    versionLabel.textContent = "Version —";
+    const widthLabel = document.createElement("label");
+    widthLabel.textContent = "Preview width";
+    const widthSlider = document.createElement("input");
+    widthSlider.type = "range";
+    widthSlider.min = "180";
+    widthSlider.max = "480";
+    widthSlider.value = "260";
+    widthSlider.setAttribute("aria-label", "Preview page width");
+    widthSlider.addEventListener("input", () => {
+      wrap.style.setProperty("--ppt-preview", widthSlider.value + "px");
+    });
+    widthLabel.append(widthSlider);
+    bar.append(versionLabel, widthLabel);
+    wrap.append(bar);
+    fetch("/version_powerpoint.txt", { cache: "no-store" })
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((t) => { versionLabel.textContent = "Version " + (t.trim() || "1"); })
+      .catch(() => {});
+  }
+
+  const frame = document.createElement("iframe");
+  frame.className = "rich-text-frame";
+  frame.title = title;
+  wrap.append(frame);
+
+  if (kind === "ppt") {
+    const nav = document.createElement("div");
+    nav.className = "ppt-nav";
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.textContent = "Previous";
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "Next";
+    prev.addEventListener("click", () => postSlide(frame, -1));
+    next.addEventListener("click", () => postSlide(frame, 1));
+    nav.append(prev, next);
+    wrap.append(nav);
+  }
+
+  return { wrap, frame, ready: Promise.resolve() };
+}
+
+function openViewer(slot, page, src) {
+  slot.frame.dataset.src = src;
+  slot.ready = new Promise((resolve) => {
+    slot.frame.addEventListener("load", () => {
+      const ready = slot.frame.contentWindow && slot.frame.contentWindow.editorReady;
+      if (ready && typeof ready.then === "function") ready.then(resolve);
+      else resolve();
+    }, { once: true });
+  });
+  const versionFile = VERSION_FILES[slot.wrap.dataset.viewer] || "/version_text_editor.txt";
+  fetch(versionFile, { cache: "no-store" })
+    .then((response) => (response.ok ? response.text() : ""))
+    .then((text) => {
+      slot.frame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&src=" + encodeURIComponent(src);
+    })
+    .catch(() => {
+      slot.frame.src = page + "?src=" + encodeURIComponent(src);
+    });
 }
 
 function postSlide(frame, delta) {
