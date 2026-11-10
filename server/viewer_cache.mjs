@@ -37,8 +37,13 @@ export async function writeCachedGzip(kind, version, bytes) {
   );
 }
 
+const BROWSER = {
+  "user-agent": "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36",
+  accept: "text/plain,*/*",
+};
+
 export async function fetchRemoteVersion(url, label) {
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetch(url, { cache: "no-store", headers: BROWSER });
   if (!response.ok) throw new Error("The " + label + " version was not available (" + response.status + ").");
   const version = versionNumber(await response.text());
   if (!version) throw new Error("The " + label + " version file is empty.");
@@ -46,7 +51,7 @@ export async function fetchRemoteVersion(url, label) {
 }
 
 export async function fetchGzip(url, label) {
-  const response = await fetch(url, { cache: "no-store" });
+  const response = await fetch(url, { cache: "no-store", headers: BROWSER });
   if (!response.ok) throw new Error("The " + label + " download was not available (" + response.status + ").");
   const packed = new Uint8Array(await response.arrayBuffer());
   if (packed.length < 10 || packed[0] !== 0x1f || packed[1] !== 0x8b) {

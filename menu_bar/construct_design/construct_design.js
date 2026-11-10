@@ -45,12 +45,12 @@ export function constructMenuDesign(menuBar, { name, onAnotherName }) {
 
   const version = document.createElement("p");
   version.className = "version";
-  version.textContent = "ver:";
+  version.textContent = "Battery NB";
   fetch("/version.txt", { cache: "no-store" })
     .then((response) => (response.ok ? response.text() : ""))
     .then((text) => {
       const number = text.trim();
-      if (number) version.textContent = "ver: " + number;
+      if (number) version.textContent = "Battery NB " + number;
     })
     .catch(() => {});
 
