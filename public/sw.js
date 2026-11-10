@@ -43,8 +43,23 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(serveIndexed(decodeURIComponent(url.pathname.slice("/indexed/".length))));
     return;
   }
+  if (url.pathname.startsWith("/viewer/")) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
   event.respondWith(networkThenCache(request));
 });
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request) || await caches.match(request.url.split("?")[0]);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response && response.ok) {
+    const cache = await caches.open(RUNTIME);
+    cache.put(request, response.clone());
+  }
+  return response;
+}
 
 async function networkThenCache(request) {
   const url = new URL(request.url);

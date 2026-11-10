@@ -231,36 +231,37 @@ function reuseOrOpen(slot, page, src) {
 async function openStored(slot, page, directory, file, src) {
   const path = directory + "/" + file;
   const guid = await guidFor(path);
-  let record = await getFile(guid);
-  const viewer = await viewerObject(slot, page);
-  if (record && record.json) {
-    await viewer.populate(JSON.stringify(record.json));
+  const record = await getFile(guid);
+  const stored = record && record.json;
+
+  // General Documents, and every other file: JSON in the database means
+  // no file download and no import. Populate gets the stored string.
+  if (stored) {
+    const viewer = await viewerObject(slot, page);
+    await viewer.populate(typeof stored === "string" ? stored : JSON.stringify(stored));
     return;
   }
-  if (!record || !record.content) {
-    const response = await fetch(src, { cache: "no-store" });
-    if (!response.ok) throw new Error("The file could not be downloaded.");
-    record = {
-      guid,
-      path,
-      directory,
-      name: file,
-      route: src,
-      type: response.headers.get("content-type") || "",
-      content: await response.arrayBuffer(),
-      savedAt: Date.now(),
-    };
-    await putFile(record);
-  } else if (record.route !== src || record.directory !== directory) {
-    record.route = src;
-    record.directory = directory;
-    await putFile(record);
-  }
-  const json = await viewer.import(record.content, file);
-  record.json = json;
-  record.savedAt = Date.now();
-  await putFile(record);
-  await viewer.populate(JSON.stringify(json));
+
+  const response = await fetch(src, { cache: "no-store" });
+  if (!response.ok) throw new Error("The file could not be downloaded.");
+  const next = {
+    guid,
+    path,
+    directory,
+    name: file,
+    route: src,
+    type: response.headers.get("content-type") || "",
+    content: await response.arrayBuffer(),
+    savedAt: Date.now(),
+  };
+  await putFile(next);
+
+  const viewer = await viewerObject(slot, page);
+  const json = await viewer.import(next.content, file);
+  next.json = JSON.stringify(json);
+  next.savedAt = Date.now();
+  await putFile(next);
+  await viewer.populate(next.json);
 }
 
 async function viewerObject(slot, page) {

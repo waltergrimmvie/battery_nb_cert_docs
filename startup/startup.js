@@ -42,14 +42,7 @@ start().catch((error) => {
 });
 
 async function start() {
-  // Version checks run together. A miss, or no network, does not stop the desk.
-  await Promise.all([
-    refreshEditor(),
-    refreshSpreadsheet(),
-    refreshPowerpoint(),
-    refreshPdf(),
-    refreshGantt(),
-  ]);
+  // The desk opens at once. A viewer is prepared only when a file needs it.
   const existing = await readIndexedName();
   if (existing) {
     await enterDesk(existing);
