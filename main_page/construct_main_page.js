@@ -280,10 +280,14 @@ async function viewerObject(slot, page) {
 
 
 const GZIP_PAGE = {
+  doc: { url: "/gzip/editor", prefix: "/viewer/rich_text/rich_text_viewer/", version: "/version_text_editor.txt" },
+  sheet: { url: "/gzip/sheet", prefix: "/viewer/spreadsheet/spreadsheet_viewer/", version: "/version_spreadsheet.txt" },
+  ppt: { url: "/gzip/ppt", prefix: "/viewer/powerpoint/powerpoint_viewer/", version: "/version_powerpoint.txt" },
   pdf: { url: "/gzip/pdf", prefix: "/viewer/pdf/pdf_viewer/", version: "/version_pdf.txt" },
   gantt: { url: "/gzip/gantt", prefix: "/viewer/gantt/gantt_viewer/", version: "/version_gantt.txt" },
 };
 const FILE_CACHE = "battery-nb-viewer-files";
+const GZIP_CACHE = "battery-nb-gzip";
 
 async function remoteNumber(path) {
   try {
@@ -295,21 +299,25 @@ async function remoteNumber(path) {
   }
 }
 
-async function oneGzip(kind) {
+async function storedVersion(kind) {
+  const cache = await caches.open(GZIP_CACHE);
+  const hit = await cache.match("/gzip/" + kind + "-version");
+  return hit ? (await hit.text()).trim() : "";
+}
+
+async function oneGzip(kind, version) {
   const spec = GZIP_PAGE[kind];
-  const cache = await caches.open("battery-nb-gzip");
-  const key = "/gzip/" + kind;
-  const version = await remoteNumber(spec.version);
-  const hit = await cache.match(key);
-  if (hit && hit.headers.get("x-viewer-version") === version && version !== "0") {
+  const cache = await caches.open(GZIP_CACHE);
+  const stored = await storedVersion(kind);
+  const hit = await cache.match("/gzip/" + kind);
+  if (hit && stored === version && version !== "0") {
     return new Uint8Array(await hit.arrayBuffer());
   }
   const response = await fetch(spec.url, { cache: "no-store" });
   if (!response.ok) throw new Error("The " + kind + " gzip could not be downloaded.");
   const bytes = new Uint8Array(await response.arrayBuffer());
-  await cache.put(key, new Response(bytes, {
-    headers: { "content-type": "application/gzip", "x-viewer-version": version },
-  }));
+  await cache.put("/gzip/" + kind, new Response(bytes, { headers: { "content-type": "application/gzip" } }));
+  await cache.put("/gzip/" + kind + "-version", new Response(version));
   return bytes;
 }
 
@@ -351,11 +359,21 @@ async function storeUnpacked(kind, files) {
   )));
 }
 
+async function filesReady(kind, version) {
+  const spec = GZIP_PAGE[kind];
+  const cache = await caches.open(FILE_CACHE);
+  const page = await cache.match(spec.prefix + "index.html");
+  return Boolean(page) && (await storedVersion(kind)) === version && version !== "0";
+}
+
 async function openPacked(slot, kind) {
   if (slot.frame.dataset.shell === "1") return slot.ready;
   slot.frame.dataset.shell = "1";
-  const files = await unpackTarGz(await oneGzip(kind));
-  await storeUnpacked(kind, files);
+  const version = await remoteNumber(GZIP_PAGE[kind].version);
+  if (!(await filesReady(kind, version))) {
+    const files = await unpackTarGz(await oneGzip(kind, version));
+    await storeUnpacked(kind, files);
+  }
   slot.ready = new Promise((resolve) => {
     slot.frame.addEventListener("load", () => {
       const ready = slot.frame.contentWindow && slot.frame.contentWindow.editorReady;
@@ -363,7 +381,6 @@ async function openPacked(slot, kind) {
       else resolve();
     }, { once: true });
   });
-  const version = await remoteNumber(GZIP_PAGE[kind].version);
   slot.frame.src = VIEWERS[kind] + "?v=" + version + "&hold=1";
   return slot.ready;
 }

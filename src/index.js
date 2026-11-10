@@ -262,7 +262,13 @@ export default {
       return env.PRESENCE.get(id).fetch(request);
     }
 
-    const gzipKind = { "/gzip/pdf": ["pdf", ensurePdf], "/gzip/gantt": ["gantt", ensureGantt] }[url.pathname];
+    const gzipKind = {
+      "/gzip/editor": ["editor", ensureEditor],
+      "/gzip/sheet": ["sheet", ensureSheet],
+      "/gzip/ppt": ["ppt", ensurePpt],
+      "/gzip/pdf": ["pdf", ensurePdf],
+      "/gzip/gantt": ["gantt", ensureGantt],
+    }[url.pathname];
     if (gzipKind) {
       await gzipKind[1](env);
       const cached = await readCachedGzip(gzipKind[0]);
@@ -343,6 +349,13 @@ export default {
       "/version_gantt.txt": savedGanttVersion,
     };
     if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname)) {
+      if (!versionFile[url.pathname]) {
+        if (url.pathname === "/version_text_editor.txt") await ensureEditor(env);
+        else if (url.pathname === "/version_spreadsheet.txt") await ensureSheet(env);
+        else if (url.pathname === "/version_powerpoint.txt") await ensurePpt(env);
+        else if (url.pathname === "/version_pdf.txt") await ensurePdf(env);
+        else if (url.pathname === "/version_gantt.txt") await ensureGantt(env);
+      }
       return new Response(String(versionFile[url.pathname] || "0") + "\n", {
         headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE },
       });

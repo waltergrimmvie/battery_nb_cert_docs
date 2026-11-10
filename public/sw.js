@@ -45,12 +45,8 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(serveIndexed(decodeURIComponent(url.pathname.slice("/indexed/".length))));
     return;
   }
-  if (url.pathname.startsWith("/viewer/pdf/") || url.pathname.startsWith("/viewer/gantt/")) {
-    event.respondWith(localViewer(request));
-    return;
-  }
   if (url.pathname.startsWith("/viewer/")) {
-    event.respondWith(freshViewer(request));
+    event.respondWith(localViewer(request));
     return;
   }
   event.respondWith(networkThenCache(request));
