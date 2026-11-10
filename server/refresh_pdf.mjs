@@ -13,17 +13,15 @@ export const PDF_PREFIX = "/viewer/pdf/pdf_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadPdf(localVersion = 0) {
-  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
-  const remote = await fetchRemoteVersion(PDF_VERSION_URL, "PDF");
-  const cached = await readCachedGzip("pdf");
-  if (cached && cached.version >= remote) {
-    const pack = preparePdf(readTar(await unpackGzip(cached.bytes)));
-    pack.report.cached = true;
-    return pack;
-  }
-  const packed = await fetchGzip(PDF_GZIP_URL, "PDF");
-  await writeCachedGzip("pdf", remote, packed);
-  return preparePdf(readTar(await unpackGzip(packed)));
+  const { loadViewerGzip } = await import("./viewer_cache.mjs");
+  return loadViewerGzip({
+    kind: "pdf",
+    versionUrl: PDF_VERSION_URL,
+    gzipUrl: PDF_GZIP_URL,
+    label: "PDF",
+    prepare: preparePdf,
+    readTar,
+  });
 }
 
 async function remotePdfVersion() {

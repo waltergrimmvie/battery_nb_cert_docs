@@ -13,17 +13,15 @@ export const SHEET_PREFIX = "/viewer/spreadsheet/spreadsheet_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadSpreadsheet(localVersion = 0) {
-  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
-  const remote = await fetchRemoteVersion(SHEET_VERSION_URL, "spreadsheet");
-  const cached = await readCachedGzip("sheet");
-  if (cached && cached.version >= remote) {
-    const pack = prepareSpreadsheet(readTar(await unpackGzip(cached.bytes)));
-    pack.report.cached = true;
-    return pack;
-  }
-  const packed = await fetchGzip(SHEET_GZIP_URL, "spreadsheet");
-  await writeCachedGzip("sheet", remote, packed);
-  return prepareSpreadsheet(readTar(await unpackGzip(packed)));
+  const { loadViewerGzip } = await import("./viewer_cache.mjs");
+  return loadViewerGzip({
+    kind: "sheet",
+    versionUrl: SHEET_VERSION_URL,
+    gzipUrl: SHEET_GZIP_URL,
+    label: "spreadsheet",
+    prepare: prepareSpreadsheet,
+    readTar,
+  });
 }
 
 async function remoteSheetVersion() {

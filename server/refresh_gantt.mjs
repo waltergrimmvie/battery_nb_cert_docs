@@ -13,17 +13,15 @@ export const GANTT_PREFIX = "/viewer/gantt/gantt_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadGantt(localVersion = 0) {
-  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
-  const remote = await fetchRemoteVersion(GANTT_VERSION_URL, "Gantt");
-  const cached = await readCachedGzip("gantt");
-  if (cached && cached.version >= remote) {
-    const pack = prepareGantt(readTar(await unpackGzip(cached.bytes)));
-    pack.report.cached = true;
-    return pack;
-  }
-  const packed = await fetchGzip(GANTT_GZIP_URL, "Gantt");
-  await writeCachedGzip("gantt", remote, packed);
-  return prepareGantt(readTar(await unpackGzip(packed)));
+  const { loadViewerGzip } = await import("./viewer_cache.mjs");
+  return loadViewerGzip({
+    kind: "gantt",
+    versionUrl: GANTT_VERSION_URL,
+    gzipUrl: GANTT_GZIP_URL,
+    label: "Gantt",
+    prepare: prepareGantt,
+    readTar,
+  });
 }
 
 async function remoteGanttVersion() {

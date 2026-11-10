@@ -13,17 +13,15 @@ export const PPT_PREFIX = "/viewer/powerpoint/powerpoint_viewer";
 const TEXT_EXT = new Set([".html", ".js", ".svg", ".txt", ".json", ".css", ".mjs"]);
 
 export async function downloadPowerpoint(localVersion = 0) {
-  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
-  const remote = await fetchRemoteVersion(PPT_VERSION_URL, "PowerPoint");
-  const cached = await readCachedGzip("ppt");
-  if (cached && cached.version >= remote) {
-    const pack = preparePowerpoint(readTar(await unpackGzip(cached.bytes)));
-    pack.report.cached = true;
-    return pack;
-  }
-  const packed = await fetchGzip(PPT_GZIP_URL, "PowerPoint");
-  await writeCachedGzip("ppt", remote, packed);
-  return preparePowerpoint(readTar(await unpackGzip(packed)));
+  const { loadViewerGzip } = await import("./viewer_cache.mjs");
+  return loadViewerGzip({
+    kind: "ppt",
+    versionUrl: PPT_VERSION_URL,
+    gzipUrl: PPT_GZIP_URL,
+    label: "PowerPoint",
+    prepare: preparePowerpoint,
+    readTar,
+  });
 }
 
 async function remotePptVersion() {

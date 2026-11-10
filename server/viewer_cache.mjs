@@ -65,3 +65,19 @@ export async function unpackGzip(packed) {
     await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer(),
   );
 }
+
+export async function loadViewerGzip({ kind, versionUrl, gzipUrl, label, prepare, readTar }) {
+  const remote = await fetchRemoteVersion(versionUrl, label);
+  const cached = await readCachedGzip(kind);
+  if (cached && cached.version >= remote) {
+    const pack = prepare(readTar(await unpackGzip(cached.bytes)));
+    pack.report.cached = true;
+    pack.report.host = new URL(versionUrl).host;
+    return pack;
+  }
+  const packed = await fetchGzip(gzipUrl, label);
+  await writeCachedGzip(kind, remote, packed);
+  const pack = prepare(readTar(await unpackGzip(packed)));
+  pack.report.host = new URL(gzipUrl).host;
+  return pack;
+}

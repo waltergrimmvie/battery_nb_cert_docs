@@ -14,17 +14,15 @@ export function versionNumber(value) {
 }
 
 export async function downloadRichTextEditor(localVersion = 0) {
-  const { readCachedGzip, writeCachedGzip, fetchRemoteVersion, fetchGzip, unpackGzip } = await import("./viewer_cache.mjs");
-  const remote = await fetchRemoteVersion(EDITOR_VERSION_URL, "editor");
-  const cached = await readCachedGzip("editor");
-  if (cached && cached.version >= remote) {
-    const pack = prepareEditor(readTar(await unpackGzip(cached.bytes)));
-    pack.report.cached = true;
-    return pack;
-  }
-  const packed = await fetchGzip(EDITOR_GZIP_URL, "editor");
-  await writeCachedGzip("editor", remote, packed);
-  return prepareEditor(readTar(await unpackGzip(packed)));
+  const { loadViewerGzip } = await import("./viewer_cache.mjs");
+  return loadViewerGzip({
+    kind: "editor",
+    versionUrl: EDITOR_VERSION_URL,
+    gzipUrl: EDITOR_GZIP_URL,
+    label: "editor",
+    prepare: prepareEditor,
+    readTar,
+  });
 }
 
 async function remoteEditorVersion() {

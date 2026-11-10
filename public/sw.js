@@ -31,7 +31,9 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.delete(RUNTIME).then(() => self.clients.claim()),
+  );
 });
 
 self.addEventListener("fetch", (event) => {
@@ -44,21 +46,27 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.pathname.startsWith("/viewer/")) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(freshViewer(request));
     return;
   }
   event.respondWith(networkThenCache(request));
 });
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request) || await caches.match(request.url.split("?")[0]);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response && response.ok) {
-    const cache = await caches.open(RUNTIME);
-    cache.put(request, response.clone());
+async function freshViewer(request) {
+  try {
+    const response = await fetch(request);
+    if (response && response.ok) {
+      const cache = await caches.open(RUNTIME);
+      cache.put(request, response.clone());
+      return response;
+    }
+    const cached = await caches.match(request);
+    return cached || response;
+  } catch (error) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw error;
   }
-  return response;
 }
 
 async function networkThenCache(request) {
