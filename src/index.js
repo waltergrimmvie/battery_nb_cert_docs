@@ -3,6 +3,7 @@ import { browserFiles } from "./browser-files.js";
 import { downloadRichTextEditor, versionNumber, VIEWER_PREFIX } from "../server/refresh_editor.mjs";
 import { downloadSpreadsheet, SHEET_PREFIX } from "../server/refresh_spreadsheet.mjs";
 import { downloadPowerpoint, PPT_PREFIX } from "../server/refresh_powerpoint.mjs";
+import { downloadPdf, PDF_PREFIX } from "../server/refresh_pdf.mjs";
 
 export { PresenceRoom };
 
@@ -32,6 +33,7 @@ const FILE_TYPE = {
   ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ".pdf": "application/pdf",
   ".xls": "application/vnd.ms-excel",
 };
 
@@ -47,6 +49,10 @@ let installingSheet = null;
 let installingPpt = null;
 let pptFiles = new Map();
 let savedPptVersion = 0;
+let pdfFiles = new Map();
+let savedPdfVersion = 0;
+let pdfReady = false;
+let installingPdf = null;
 
 function editorFile(pathname) {
   if (!pathname.startsWith(VIEWER_PREFIX + "/")) return null;
@@ -61,6 +67,11 @@ function sheetFile(pathname) {
 function pptFile(pathname) {
   if (!pathname.startsWith(PPT_PREFIX + "/")) return null;
   return pptFiles.get(pathname.slice(PPT_PREFIX.length + 1)) || null;
+}
+
+function pdfFile(pathname) {
+  if (!pathname.startsWith(PDF_PREFIX + "/")) return null;
+  return pdfFiles.get(pathname.slice(PDF_PREFIX.length + 1)) || null;
 }
 
 async function localEditorVersion(env) {
@@ -94,6 +105,17 @@ async function localPptVersion(env) {
     savedPptVersion = 0;
   }
   return savedPptVersion;
+}
+
+async function localPdfVersion(env) {
+  if (savedPdfVersion) return savedPdfVersion;
+  try {
+    const stored = await env.ASSETS.fetch(new Request("https://desk.local/version_pdf.txt"));
+    if (stored.ok) savedPdfVersion = versionNumber(await stored.text());
+  } catch {
+    savedPdfVersion = 0;
+  }
+  return savedPdfVersion;
 }
 
 // Compare version_text_editor.txt with the text editor site. A newer gzip
@@ -159,6 +181,27 @@ async function ensurePpt(env) {
   return installingPpt;
 }
 
+// Compare version_pdf.txt with pdf.dev-q-prox.com. A newer gzip replaces
+// the PDF viewer the same way as the other three.
+async function ensurePdf(env) {
+  if (!installingPdf) {
+    const job = (async () => {
+      const pack = await downloadPdf(await localPdfVersion(env));
+      if (!pack.report.skipped && pack.files) {
+        pdfFiles = pack.files;
+        savedPdfVersion = versionNumber(pack.report.version);
+      }
+      pdfReady = true;
+      return pack.report;
+    })();
+    installingPdf = job;
+    job.finally(() => {
+      if (installingPdf === job) installingPdf = null;
+    });
+  }
+  return installingPdf;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -174,11 +217,17 @@ export default {
     const isRefresh = url.pathname === "/editor/refresh";
     const isSheetRefresh = url.pathname === "/spreadsheet/refresh";
     const isPptRefresh = url.pathname === "/powerpoint/refresh";
+    const isPdfRefresh = url.pathname === "/pdf/refresh";
     const isViewer = url.pathname.startsWith(VIEWER_PREFIX + "/");
     const isSheetViewer = url.pathname.startsWith(SHEET_PREFIX + "/");
     const isPptViewer = url.pathname.startsWith(PPT_PREFIX + "/");
-    if (isPage || isRefresh || isSheetRefresh || isPptRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady) || (isPptViewer && !pptReady)) {
+    const isPdfViewer = url.pathname.startsWith(PDF_PREFIX + "/");
+    if (isPage || isRefresh || isSheetRefresh || isPptRefresh || isPdfRefresh || (isViewer && !editorReady) || (isSheetViewer && !sheetReady) || (isPptViewer && !pptReady) || (isPdfViewer && !pdfReady)) {
       try {
+        if (isPdfRefresh) {
+          const report = await ensurePdf(env);
+          return Response.json(report, { headers: NO_STORE });
+        }
         if (isPptRefresh) {
           const report = await ensurePpt(env);
           return Response.json(report, { headers: NO_STORE });
@@ -192,17 +241,19 @@ export default {
           return Response.json(report, { headers: NO_STORE });
         }
         if (isPage) {
-          await Promise.all([ensureEditor(env), ensureSheet(env), ensurePpt(env)]);
+          await Promise.all([ensureEditor(env), ensureSheet(env), ensurePpt(env), ensurePdf(env)]);
         } else if (isViewer && !editorReady) {
           await ensureEditor(env);
         } else if (isSheetViewer && !sheetReady) {
           await ensureSheet(env);
         } else if (isPptViewer && !pptReady) {
           await ensurePpt(env);
+        } else if (isPdfViewer && !pdfReady) {
+          await ensurePdf(env);
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Download failed.";
-        if (isRefresh || isSheetRefresh || isPptRefresh) {
+        if (isRefresh || isSheetRefresh || isPptRefresh || isPdfRefresh) {
           return Response.json({ ok: false, error: message }, { status: 502, headers: NO_STORE });
         }
         return new Response(message, {
@@ -216,6 +267,7 @@ export default {
       "/version_text_editor.txt": savedEditorVersion,
       "/version_spreadsheet.txt": savedSheetVersion,
       "/version_powerpoint.txt": savedPptVersion,
+      "/version_pdf.txt": savedPdfVersion,
     };
     if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname) && versionFile[url.pathname]) {
       return new Response(String(versionFile[url.pathname]) + "\n", {
@@ -223,7 +275,7 @@ export default {
       });
     }
 
-    const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname);
+    const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname) || pdfFile(url.pathname);
     if (fresh) {
       const type = FILE_TYPE[url.pathname.slice(url.pathname.lastIndexOf(".")).toLowerCase()] || "application/octet-stream";
       return new Response(fresh, { headers: { "content-type": type, ...NO_STORE } });

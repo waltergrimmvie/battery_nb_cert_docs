@@ -85,6 +85,7 @@ const FILE_LABELS = {
   "EU Battery Line Checklist.docx": "EU Battery Line Checklist",
   "EU_Battery_17065_Detailed_Checklist_v5_Compressed.xlsx": "EU Battery 17065 Detailed Checklist (Excel)",
   "Qauditors_EU_Vehicle_Certification_Company_CN.pptx": "EU Vehicle Certification Brief (PowerPoint)",
+  "EU_Battery_Regulation_with_Client_Index_Framed.pdf": "EU Battery Regulation (PDF)",
 };
 
 function fillTree(nav, tree, content, directories) {
@@ -136,7 +137,7 @@ function fillTree(nav, tree, content, directories) {
 
 function fileLabel(file) {
   if (FILE_LABELS[file]) return FILE_LABELS[file];
-  return file.replace(/\.(docx|xlsx|xls|pptx)$/i, "");
+  return file.replace(/\.(docx|xlsx|xls|pptx|pdf)$/i, "");
 }
 
 function showIntro(content) {
@@ -163,12 +164,14 @@ const VIEWERS = {
   doc: "/viewer/rich_text/rich_text_viewer/index.html",
   sheet: "/viewer/spreadsheet/spreadsheet_viewer/index.html",
   ppt: "/viewer/powerpoint/powerpoint_viewer/index.html",
+  pdf: "/viewer/pdf/pdf_viewer/index.html",
 };
 
 function viewerKind(file) {
   const lower = file.toLowerCase();
   if (lower.endsWith(".xlsx") || lower.endsWith(".xls")) return "sheet";
   if (lower.endsWith(".pptx")) return "ppt";
+  if (lower.endsWith(".pdf")) return "pdf";
   return "doc";
 }
 
@@ -245,7 +248,7 @@ function showDocument(content, directory, file) {
         else resolve();
       }, { once: true });
     });
-    const versionFile = kind === "ppt" ? "/version_powerpoint.txt" : kind === "sheet" ? "/version_spreadsheet.txt" : "/version_text_editor.txt";
+    const versionFile = kind === "ppt" ? "/version_powerpoint.txt" : kind === "sheet" ? "/version_spreadsheet.txt" : kind === "pdf" ? "/version_pdf.txt" : "/version_text_editor.txt";
     fetch(versionFile, { cache: "no-store" })
       .then((response) => (response.ok ? response.text() : ""))
       .then((text) => {
