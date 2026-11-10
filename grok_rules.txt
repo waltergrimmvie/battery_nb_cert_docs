@@ -121,3 +121,10 @@ Converted JSON
 - A file is stored with its route, including the directory.
 - The first open imports it. The converted JSON is saved on that record.
 - The next populate reads that JSON. It does not import the file again.
+
+Viewer object
+- Each viewer exposes Viewer.import, Viewer.populate, and Viewer.export.
+- The viewer does not touch IndexedDB.
+- Battery NB checks the stored JSON. If it is there, it calls populate
+  with that string. If it is not, it calls import with the original file,
+  saves the returned JSON, then calls populate.

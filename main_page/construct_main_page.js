@@ -232,8 +232,9 @@ async function openStored(slot, page, directory, file, src) {
   const path = directory + "/" + file;
   const guid = await guidFor(path);
   let record = await getFile(guid);
+  const viewer = await viewerObject(slot, page);
   if (record && record.json) {
-    reuseOrOpen(slot, page, await storedJsonUrl(guid, record.json));
+    await viewer.populate(JSON.stringify(record.json));
     return;
   }
   if (!record || !record.content) {
@@ -255,22 +256,42 @@ async function openStored(slot, page, directory, file, src) {
     record.directory = directory;
     await putFile(record);
   }
-  const original = URL.createObjectURL(new Blob([record.content], { type: record.type || undefined }));
-  reuseOrOpen(slot, page, original);
-  await slot.ready;
-  const win = slot.frame.contentWindow;
-  const doc = win && win.__lastDocument;
-  if (!doc) return;
-  record.json = doc;
+  const json = await viewer.import(record.content, file);
+  record.json = json;
   record.savedAt = Date.now();
   await putFile(record);
+  await viewer.populate(JSON.stringify(json));
 }
 
-async function storedJsonUrl(guid, json) {
-  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-    return "/indexed/" + guid + ".json";
+async function viewerObject(slot, page) {
+  await openShell(slot, page);
+  const win = slot.frame.contentWindow;
+  if (!win || !win.Viewer || typeof win.Viewer.import !== "function" || typeof win.Viewer.populate !== "function") {
+    throw new Error("The viewer object is not ready.");
   }
-  return URL.createObjectURL(new Blob([JSON.stringify(json)], { type: "application/json" }));
+  return win.Viewer;
+}
+
+function openShell(slot, page) {
+  if (slot.frame.dataset.shell === "1") return slot.ready;
+  slot.frame.dataset.shell = "1";
+  slot.ready = new Promise((resolve) => {
+    slot.frame.addEventListener("load", () => {
+      const ready = slot.frame.contentWindow && slot.frame.contentWindow.editorReady;
+      if (ready && typeof ready.then === "function") ready.then(resolve);
+      else resolve();
+    }, { once: true });
+  });
+  const versionFile = VERSION_FILES[slot.wrap.dataset.viewer] || "/version_text_editor.txt";
+  fetch(versionFile, { cache: "no-store" })
+    .then((response) => (response.ok ? response.text() : ""))
+    .then((text) => {
+      slot.frame.src = page + "?v=" + encodeURIComponent(text.trim()) + "&hold=1";
+    })
+    .catch(() => {
+      slot.frame.src = page + "?hold=1";
+    });
+  return slot.ready;
 }
 
 function buildViewer(kind, title) {
