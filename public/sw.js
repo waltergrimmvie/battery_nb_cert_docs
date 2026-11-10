@@ -40,10 +40,6 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin === "https://fonts.googleapis.com" || url.origin === "https://fonts.gstatic.com") {
-    event.respondWith(cachedFont(request));
-    return;
-  }
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/indexed/")) {
     event.respondWith(serveIndexed(decodeURIComponent(url.pathname.slice("/indexed/".length))));
