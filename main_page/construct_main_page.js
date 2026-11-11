@@ -254,6 +254,16 @@ async function openStored(slot, page, directory, file, src) {
     return;
   }
 
+  // The file was saved before. Import it from the phone. Do not download it.
+  if (!isDoc && record && record.content) {
+    const viewer = await viewerObject(slot, page);
+    const json = await viewer.import(record.content, file);
+    const next = { ...record, json: JSON.stringify(json), savedAt: Date.now() };
+    await putFile(next);
+    await viewer.populate(next.json);
+    return;
+  }
+
   // The text editor draws a file only when the address carries it.
   // That is the path that was working. The JSON is saved after it draws.
   if (isDoc) {
@@ -332,7 +342,7 @@ async function oneGzip(kind, version) {
   const cache = await caches.open(GZIP_CACHE);
   const stored = await storedVersion(kind);
   const hit = await cache.match("/gzip/" + kind);
-  if (hit && stored === version && version !== "0") {
+  if (hit && (version === "0" || stored === version)) {
     return new Uint8Array(await hit.arrayBuffer());
   }
   const response = await fetch(spec.url, { cache: "no-store" });
