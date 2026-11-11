@@ -230,34 +230,53 @@ function reuseOrOpen(slot, page, src) {
   slot.ready = slot.ready.then(() => slot.frame.contentWindow.populate(src));
 }
 
+function hasSections(value) {
+  try {
+    const doc = typeof value === "string" ? JSON.parse(value) : value;
+    return Boolean(doc && Array.isArray(doc.sections) && doc.sections.length);
+  } catch {
+    return false;
+  }
+}
+
 async function openStored(slot, page, directory, file, src) {
   const path = directory + "/" + file;
   const guid = await guidFor(path);
   const record = await getFile(guid);
   const stored = record && record.json;
+  const isDoc = page === VIEWERS.doc;
 
-  // General Documents, and every other file: JSON in the database means
-  // no file download and no import. Populate gets the stored string.
-  if (stored) {
+  // A stored JSON with sections is drawn. No file download.
+  if (stored && hasSections(stored)) {
     const viewer = await viewerObject(slot, page);
     await viewer.populate(typeof stored === "string" ? stored : JSON.stringify(stored));
+    return;
+  }
+
+  // The text editor draws a file only when the address carries it.
+  // That is the path that was working. The JSON is saved after it draws.
+  if (isDoc) {
+    await openViewer(slot, page, src);
+    const win = slot.frame.contentWindow;
+    const doc = win && win.Viewer && win.Viewer.export ? win.Viewer.export() : null;
+    if (doc && doc.sections) {
+      await putFile({
+        guid, path, directory, name: file, route: src,
+        json: JSON.stringify(doc), savedAt: Date.now(),
+      });
+    }
     return;
   }
 
   const response = await fetch(src, { cache: "no-store" });
   if (!response.ok) throw new Error("The file could not be downloaded.");
   const next = {
-    guid,
-    path,
-    directory,
-    name: file,
-    route: src,
+    guid, path, directory, name: file, route: src,
     type: response.headers.get("content-type") || "",
     content: await response.arrayBuffer(),
     savedAt: Date.now(),
   };
   await putFile(next);
-
   const viewer = await viewerObject(slot, page);
   const json = await viewer.import(next.content, file);
   next.json = JSON.stringify(json);
