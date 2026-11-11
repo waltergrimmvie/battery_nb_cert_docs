@@ -496,6 +496,17 @@ select:focus, button:focus-visible, .slider:focus-visible {
   flex: 1 1 auto;
 }
 
+.workspace.narrow .content-container:has(.rich-text-viewer) {
+  height: calc(100dvh - 56px);
+  max-height: calc(100dvh - 56px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rich-text-frame {
+  touch-action: pan-x pan-y;
+}
+
 .workspace.narrow:not(.show-tree) .tree-container { display: none; }
 
 .workspace.narrow.show-tree .content-container { display: none; }
