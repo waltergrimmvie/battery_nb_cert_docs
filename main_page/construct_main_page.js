@@ -504,11 +504,26 @@ function openShell(slot, page) {
     }, { once: true });
   });
   const versionFile = VERSION_FILES[slot.wrap.dataset.viewer] || "/version_text_editor.txt";
+  const kind = slot.wrap.dataset.viewer === "sheet" ? "sheet" : slot.wrap.dataset.viewer === "doc" ? "doc" : "";
   fetch(versionFile, { cache: "no-store" })
     .then((response) => (response.ok ? response.text() : ""))
-    .then((text) => {
+    .then(async (text) => {
       const number = String(text || "").trim();
       const version = /^[0-9]+$/.test(number) && number !== "0" ? number : "54";
+      if (kind) {
+        const saved = await storedVersion(kind);
+        if (!saved || Number(version) > Number(saved)) {
+          const cache = await caches.open(FILE_CACHE);
+          const prefix = GZIP_PAGE[kind].prefix;
+          const keys = await cache.keys();
+          await Promise.all(keys.filter((key) => new URL(key.url).pathname.startsWith(prefix)).map((key) => cache.delete(key)));
+          const gz = await caches.open(GZIP_CACHE);
+          await gz.delete("/gzip/" + kind);
+          await gz.delete("/gzip/" + kind + "-version");
+        }
+        const gz = await caches.open(GZIP_CACHE);
+        await gz.put("/gzip/" + kind + "-version", new Response(version));
+      }
       slot.frame.src = page + "?v=" + version + "&hold=1";
     })
     .catch(() => {

@@ -349,16 +349,26 @@ export default {
       "/version_gantt.txt": savedGanttVersion,
     };
     if (Object.prototype.hasOwnProperty.call(versionFile, url.pathname)) {
-      if (!versionFile[url.pathname]) {
-        if (url.pathname === "/version_text_editor.txt") await ensureEditor(env);
-        else if (url.pathname === "/version_spreadsheet.txt") await ensureSheet(env);
-        else if (url.pathname === "/version_powerpoint.txt") await ensurePpt(env);
-        else if (url.pathname === "/version_pdf.txt") await ensurePdf(env);
-        else if (url.pathname === "/version_gantt.txt") await ensureGantt(env);
+      if (url.pathname === "/version_text_editor.txt") {
+        if (!savedEditorVersion) await ensureEditor(env);
+        return new Response(String(savedEditorVersion || "0") + "\n", { headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE } });
       }
-      return new Response(String(versionFile[url.pathname] || "0") + "\n", {
-        headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE },
-      });
+      if (url.pathname === "/version_spreadsheet.txt") {
+        if (!savedSheetVersion) await ensureSheet(env);
+        return new Response(String(savedSheetVersion || "0") + "\n", { headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE } });
+      }
+      if (url.pathname === "/version_powerpoint.txt") {
+        if (!savedPptVersion) await ensurePpt(env);
+        return new Response(String(savedPptVersion || "0") + "\n", { headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE } });
+      }
+      if (url.pathname === "/version_pdf.txt") {
+        if (!savedPdfVersion) await ensurePdf(env);
+        return new Response(String(savedPdfVersion || "0") + "\n", { headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE } });
+      }
+      if (url.pathname === "/version_gantt.txt") {
+        if (!savedGanttVersion) await ensureGantt(env);
+        return new Response(String(savedGanttVersion || "0") + "\n", { headers: { "content-type": "text/plain; charset=utf-8", ...NO_STORE } });
+      }
     }
 
     const fresh = editorFile(url.pathname) || sheetFile(url.pathname) || pptFile(url.pathname) || pdfFile(url.pathname) || ganttFile(url.pathname);
