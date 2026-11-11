@@ -246,8 +246,9 @@ async function openStored(slot, page, directory, file, src) {
   const stored = record && record.json;
   const isDoc = page === VIEWERS.doc;
 
-  // A stored JSON with sections is drawn. No file download.
-  if (stored && hasSections(stored)) {
+  // Any stored JSON is drawn. No file download.
+  // Sections are only required for the text editor.
+  if (stored && (!isDoc || hasSections(stored))) {
     const viewer = await viewerObject(slot, page);
     await viewer.populate(typeof stored === "string" ? stored : JSON.stringify(stored));
     return;
