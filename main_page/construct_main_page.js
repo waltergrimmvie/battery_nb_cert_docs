@@ -357,10 +357,35 @@ function typeFor(name) {
   return "application/octet-stream";
 }
 
+function prepareForDesk(kind, files) {
+  const prefix = GZIP_PAGE[kind].prefix;
+  const out = new Map();
+  for (const [name, bytes] of files) {
+    if (!/\.(html|js|css|mjs)$/.test(name)) {
+      out.set(name, bytes);
+      continue;
+    }
+    let text = new TextDecoder().decode(bytes);
+    if (name.endsWith(".html")) {
+      text = text.replaceAll('src="/public/', 'src="./public/').replaceAll("src='/public/", "src='./public/");
+    }
+    text = text
+      .replaceAll("/public/fonts/", prefix + "public/fonts/")
+      .replaceAll("/public/Files/", prefix + "public/Files/")
+      .replaceAll("/fonts/", prefix + "fonts/")
+      .replaceAll("/assets/", prefix + "assets/")
+      .replaceAll("/Files/", prefix + "Files/")
+      .replaceAll("/version.txt", prefix + "version.txt");
+    out.set(name, new TextEncoder().encode(text));
+  }
+  return out;
+}
+
 async function storeUnpacked(kind, files) {
   const spec = GZIP_PAGE[kind];
   const cache = await caches.open(FILE_CACHE);
-  await Promise.all([...files.entries()].map(([name, bytes]) => cache.put(
+  const prepared = prepareForDesk(kind, files);
+  await Promise.all([...prepared.entries()].map(([name, bytes]) => cache.put(
     spec.prefix + name,
     new Response(bytes, { headers: { "content-type": typeFor(name) } }),
   )));
@@ -381,11 +406,14 @@ async function openPacked(slot, kind) {
     const files = await unpackTarGz(await oneGzip(kind, version));
     await storeUnpacked(kind, files);
   }
-  slot.ready = new Promise((resolve) => {
+  slot.ready = new Promise((resolve, reject) => {
     slot.frame.addEventListener("load", () => {
-      const ready = slot.frame.contentWindow && slot.frame.contentWindow.editorReady;
-      if (ready && typeof ready.then === "function") ready.then(resolve);
-      else resolve();
+      const win = slot.frame.contentWindow;
+      const ready = win && win.editorReady;
+      const done = () => resolve();
+      if (ready && typeof ready.then === "function") ready.then(done).catch(reject);
+      else done();
+      setTimeout(() => reject(new Error("The viewer did not start.")), 12000);
     }, { once: true });
   });
   slot.frame.src = VIEWERS[kind] + "?v=" + version + "&hold=1";
