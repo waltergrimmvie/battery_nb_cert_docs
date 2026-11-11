@@ -215,7 +215,9 @@ function showDocument(content, directory, file) {
     slot.wrap.hidden = false;
   }
 
-  openStored(slot, page, directory, file, src);
+  openStored(slot, page, directory, file, src).catch((error) => {
+    slot.frame.insertAdjacentHTML("afterend", "<p class=\"note\">" + (error && error.message ? error.message : "The file could not be opened.") + "</p>");
+  });
 }
 
 function reuseOrOpen(slot, page, src) {
@@ -266,7 +268,7 @@ async function openStored(slot, page, directory, file, src) {
 
 async function viewerObject(slot, page) {
   const packed = Object.keys(GZIP_PAGE).find((kind) => VIEWERS[kind] === page);
-  if (packed) {
+  if (packed && packed !== "doc" && packed !== "sheet") {
     await openPacked(slot, packed);
   } else {
     await openShell(slot, page);

@@ -64,7 +64,9 @@ async function localViewer(request) {
   const cache = await caches.open("battery-nb-viewer-files");
   const cached = await cache.match(url.pathname) || await cache.match(request);
   if (cached) return cached;
-  return fetch(request);
+  const response = await fetch(request);
+  if (response && response.ok) cache.put(url.pathname, response.clone());
+  return response;
 }
 
 async function freshViewer(request) {

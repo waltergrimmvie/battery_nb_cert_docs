@@ -102,10 +102,19 @@ export function prepareEditor(rawFiles) {
 function installViewerHooks(source) {
   // The viewer already exposes the same object the spreadsheet uses.
   if (source.includes("window.populate") && source.includes("editorReady")) {
-    return source.replace(
-      /navigator\.serviceWorker\?\.getRegistrations&&navigator\.serviceWorker\.getRegistrations\(\)\.then\(e=>e\.forEach\(e=>e\.unregister\(\)\)\)\.catch\(\(\)=>\{\}\)/,
-      "0",
-    );
+    return source
+      .replace(
+        /navigator\.serviceWorker\?\.getRegistrations&&navigator\.serviceWorker\.getRegistrations\(\)\.then\(e=>e\.forEach\(e=>e\.unregister\(\)\)\)\.catch\(\(\)=>\{\}\)/,
+        "0",
+      )
+      .replace(
+        "typeof caches<`u`&&caches.keys&&caches.keys().then(e=>e.forEach(e=>caches.delete(e))).catch(()=>{})",
+        "0",
+      )
+      .replace(
+        "async function mo(){for(let e of[`/documents/EU_Battery_Regulation_Client_Checklist.docx`,`/public/documents/EU_Battery_Regulation_Client_Checklist.docx`])",
+        "async function mo(){return!1;for(let e of[`/documents/EU_Battery_Regulation_Client_Checklist.docx`,`/public/documents/EU_Battery_Regulation_Client_Checklist.docx`])",
+      );
   }
 
   const loader = /async function ([A-Za-z0-9_]+)\(\)\{for\(let e of\[[^\]]*\]\)try\{let t=await fetch\(e,\{cache:`no-store`\}\);if\(!t\.ok\)continue;let n=await t\.arrayBuffer\(\);if\(n\.byteLength<100\)continue;let\{importDocx:r\}=await ([A-Za-z0-9_]+)\(async\(\)=>\{let\{importDocx:e\}=await Promise\.resolve\(\)\.then\(\(\)=>\(([A-Za-z0-9_]+)\(\),([A-Za-z0-9_]+)\)\);return\{importDocx:e\}\},void 0\),i=await r\(n,`[^`]*`\);if\(U\.opened\)return!0;if\(i\?\.sections\?\.length\)return ([A-Za-z0-9_]+)\(`log`,`startup: imported `\+e\),([A-Za-z0-9_]+)\(i,`[^`]*`\),!0\}catch/;
