@@ -369,6 +369,16 @@ function prepareForDesk(kind, files) {
     if (name.endsWith(".html")) {
       text = text.replaceAll('src="/public/', 'src="./public/').replaceAll("src='/public/", "src='./public/");
     }
+    if (name.endsWith("boot.js")) {
+      text = text.replaceAll(
+        "typeof caches<`u`&&caches.keys&&caches.keys().then(e=>e.forEach(e=>caches.delete(e))).catch(()=>{}),navigator.serviceWorker?.getRegistrations&&navigator.serviceWorker.getRegistrations().then(e=>e.forEach(e=>e.unregister())).catch(()=>{})",
+        "0",
+      );
+      text = text.replace(
+        "async function mo(){for(let e of[`/documents/EU_Battery_Regulation_Client_Checklist.docx`,`/public/documents/EU_Battery_Regulation_Client_Checklist.docx`])",
+        "async function mo(){return!1;for(let e of[`/documents/EU_Battery_Regulation_Client_Checklist.docx`,`/public/documents/EU_Battery_Regulation_Client_Checklist.docx`])",
+      );
+    }
     text = text
       .replaceAll("/public/fonts/", prefix + "public/fonts/")
       .replaceAll("/public/Files/", prefix + "public/Files/")
@@ -401,7 +411,15 @@ async function filesReady(kind, version) {
 async function localFilesReady(kind) {
   const spec = GZIP_PAGE[kind];
   const cache = await caches.open(FILE_CACHE);
-  return Boolean(await cache.match(spec.prefix + "index.html"));
+  const page = await cache.match(spec.prefix + "index.html");
+  if (!page) return false;
+  if (kind === "doc") {
+    const boot = await cache.match(spec.prefix + "public/paint/boot.js");
+    if (!boot) return false;
+    const source = await boot.text();
+    if (source.includes("caches.delete")) return false;
+  }
+  return true;
 }
 
 async function openPacked(slot, kind) {
