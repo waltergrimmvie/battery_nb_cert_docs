@@ -398,25 +398,39 @@ async function filesReady(kind, version) {
   return Boolean(page) && (await storedVersion(kind)) === version && version !== "0";
 }
 
+async function localFilesReady(kind) {
+  const spec = GZIP_PAGE[kind];
+  const cache = await caches.open(FILE_CACHE);
+  return Boolean(await cache.match(spec.prefix + "index.html"));
+}
+
 async function openPacked(slot, kind) {
   if (slot.frame.dataset.shell === "1") return slot.ready;
   slot.frame.dataset.shell = "1";
-  const version = await remoteNumber(GZIP_PAGE[kind].version);
-  if (!(await filesReady(kind, version))) {
-    const files = await unpackTarGz(await oneGzip(kind, version));
+  // A copy on the phone is used as it is. No version check, no gzip.
+  if (!(await localFilesReady(kind))) {
+    const version = await remoteNumber(GZIP_PAGE[kind].version);
+    const files = await unpackTarGz(await oneGzip(kind, version === "0" ? "1" : version));
     await storeUnpacked(kind, files);
   }
   slot.ready = new Promise((resolve, reject) => {
+    const wait = async () => {
+      for (let i = 0; i < 60; i += 1) {
+        const win = slot.frame.contentWindow;
+        if (win && win.Viewer && typeof win.Viewer.populate === "function") {
+          if (win.editorReady && typeof win.editorReady.then === "function") await win.editorReady;
+          return;
+        }
+        await new Promise((pause) => setTimeout(pause, 100));
+      }
+      throw new Error("The viewer did not start.");
+    };
     slot.frame.addEventListener("load", () => {
-      const win = slot.frame.contentWindow;
-      const ready = win && win.editorReady;
-      const done = () => resolve();
-      if (ready && typeof ready.then === "function") ready.then(done).catch(reject);
-      else done();
-      setTimeout(() => reject(new Error("The viewer did not start.")), 12000);
+      wait().then(resolve).catch(reject);
     }, { once: true });
   });
-  slot.frame.src = VIEWERS[kind] + "?v=" + version + "&hold=1";
+  const version = await storedVersion(kind);
+  slot.frame.src = VIEWERS[kind] + "?v=" + (version || "1") + "&hold=1";
   return slot.ready;
 }
 
