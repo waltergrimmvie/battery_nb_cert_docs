@@ -329,13 +329,20 @@ async function unpackTarGz(bytes) {
   while (offset + 512 <= raw.length) {
     const header = raw.subarray(offset, offset + 512);
     if (header.every((b) => b === 0)) break;
-    let name = dec.decode(header.subarray(0, 100)).replace(/\0.*$/, "");
-    if (name.includes("/")) name = name.split("/").slice(1).join("/");
+    const name = dec.decode(header.subarray(0, 100)).replace(/\0.*$/, "");
     const size = parseInt(dec.decode(header.subarray(124, 136)).replace(/\0.*$/, "").trim() || "0", 8) || 0;
     offset += 512;
     const data = raw.subarray(offset, offset + size);
     if (name && !name.endsWith("/")) files.set(name, data);
     offset += Math.ceil(size / 512) * 512;
+  }
+  const names = [...files.keys()];
+  const first = names.map((name) => name.split("/")[0]);
+  const wrapper = first.length && first.every((part) => part === first[0] && names.every((name) => name.includes("/")));
+  if (wrapper) {
+    const stripped = new Map();
+    for (const [name, data] of files) stripped.set(name.split("/").slice(1).join("/"), data);
+    return stripped;
   }
   return files;
 }
