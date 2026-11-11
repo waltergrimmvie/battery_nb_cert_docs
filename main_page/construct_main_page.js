@@ -457,11 +457,20 @@ async function openPacked(slot, kind) {
 function openShell(slot, page) {
   if (slot.frame.dataset.shell === "1") return slot.ready;
   slot.frame.dataset.shell = "1";
-  slot.ready = new Promise((resolve) => {
+  slot.ready = new Promise((resolve, reject) => {
+    const wait = async () => {
+      for (let i = 0; i < 80; i += 1) {
+        const win = slot.frame.contentWindow;
+        if (win && win.Viewer && typeof win.Viewer.populate === "function") {
+          if (win.editorReady && typeof win.editorReady.then === "function") await win.editorReady;
+          return;
+        }
+        await new Promise((pause) => setTimeout(pause, 100));
+      }
+      throw new Error("The viewer did not start.");
+    };
     slot.frame.addEventListener("load", () => {
-      const ready = slot.frame.contentWindow && slot.frame.contentWindow.editorReady;
-      if (ready && typeof ready.then === "function") ready.then(resolve);
-      else resolve();
+      wait().then(resolve).catch(reject);
     }, { once: true });
   });
   const versionFile = VERSION_FILES[slot.wrap.dataset.viewer] || "/version_text_editor.txt";
@@ -469,11 +478,11 @@ function openShell(slot, page) {
     .then((response) => (response.ok ? response.text() : ""))
     .then((text) => {
       const number = String(text || "").trim();
-      const version = /^[0-9]+$/.test(number) ? number : "0";
+      const version = /^[0-9]+$/.test(number) && number !== "0" ? number : "54";
       slot.frame.src = page + "?v=" + version + "&hold=1";
     })
     .catch(() => {
-      slot.frame.src = page + "?v=0&hold=1";
+      slot.frame.src = page + "?v=54&hold=1";
     });
   return slot.ready;
 }
