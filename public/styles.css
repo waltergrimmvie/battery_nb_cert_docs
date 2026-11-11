@@ -503,9 +503,6 @@ select:focus, button:focus-visible, .slider:focus-visible {
   overflow: hidden;
 }
 
-.rich-text-frame {
-  touch-action: pan-x pan-y;
-}
 
 .workspace.narrow:not(.show-tree) .tree-container { display: none; }
 
