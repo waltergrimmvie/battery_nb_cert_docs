@@ -592,3 +592,13 @@ select:focus, button:focus-visible, .slider:focus-visible {
 .rich-text-viewer {
   --ppt-preview: 260px;
 }
+
+.version-rows { margin-top: 18px; display: grid; gap: 10px; }
+.version-row { display: grid; grid-template-columns: 28px 1fr 28px 48px; align-items: center; gap: 8px; min-height: 32px; }
+.version-mark { color: var(--muted); font-size: 18px; }
+.version-mark.checked { color: var(--brass); }
+.version-name { font-weight: 600; }
+.version-icon { font-size: 18px; }
+.version-icon.downloading { animation: version-pulse 0.8s ease-in-out infinite; }
+.version-number { text-align: right; font-variant-numeric: tabular-nums; }
+@keyframes version-pulse { 50% { opacity: 0.35; } }

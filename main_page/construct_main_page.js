@@ -35,7 +35,7 @@ export function constructMainPage(root) {
   root.append(app);
 
   renderTree(tree, content);
-  showIntro(content);
+  showVersionGate(content).then(() => showIntro(content));
   attachSlider(slider, tree, workspace);
 
   return {
@@ -140,6 +140,72 @@ function fillTree(nav, tree, content, directories) {
 function fileLabel(file) {
   if (FILE_LABELS[file]) return FILE_LABELS[file];
   return file.replace(/\.(docx|xlsx|xls|pptx|pdf|json|csv|xml)$/i, "");
+}
+
+
+const VERSION_ROWS = [
+  ["doc", "Text editor"],
+  ["sheet", "Spreadsheet"],
+  ["pdf", "PDF"],
+  ["gantt", "Gantt"],
+  ["ppt", "Presentation"],
+];
+
+function showVersionGate(content) {
+  content.replaceChildren();
+  const article = document.createElement("article");
+  article.className = "note version-gate";
+  const heading = document.createElement("h1");
+  heading.textContent = "Checking viewers";
+  article.append(heading);
+  const list = document.createElement("div");
+  list.className = "version-rows";
+  const rows = {};
+  for (const [kind, label] of VERSION_ROWS) {
+    const row = document.createElement("div");
+    row.className = "version-row";
+    const mark = document.createElement("span");
+    mark.className = "version-mark";
+    mark.textContent = "·";
+    const name = document.createElement("span");
+    name.className = "version-name";
+    name.textContent = label;
+    const icon = document.createElement("span");
+    icon.className = "version-icon";
+    icon.textContent = "";
+    const ver = document.createElement("span");
+    ver.className = "version-number";
+    ver.textContent = "";
+    row.append(mark, name, icon, ver);
+    list.append(row);
+    rows[kind] = { mark, icon, ver };
+  }
+  article.append(list);
+  content.append(article);
+
+  return (async () => {
+    for (const [kind] of VERSION_ROWS) {
+      const row = rows[kind];
+      row.mark.textContent = "✓";
+      row.mark.classList.add("checked");
+      const started = Date.now();
+      let report = { version: "", downloaded: false };
+      try {
+        report = await refreshViewer(kind);
+      } catch {
+        report = { version: await storedVersion(kind), downloaded: false };
+      }
+      if (report.downloaded) {
+        row.icon.textContent = "↓";
+        row.icon.classList.add("downloading");
+        const wait = 1000 - (Date.now() - started);
+        if (wait > 0) await new Promise((pause) => setTimeout(pause, wait));
+        row.icon.textContent = "";
+        row.icon.classList.remove("downloading");
+      }
+      row.ver.textContent = report.version || "—";
+    }
+  })();
 }
 
 function showIntro(content) {
@@ -460,11 +526,13 @@ async function refreshViewer(kind) {
   const remote = await remoteNumber(GZIP_PAGE[kind].version);
   const saved = await storedVersion(kind);
   const ready = await localFilesReady(kind);
-  if (ready && saved && remote !== "0" && Number(remote) <= Number(saved)) return saved;
+  if (ready && saved && remote !== "0" && Number(remote) <= Number(saved)) {
+    return { version: saved, downloaded: false };
+  }
   const version = remote !== "0" ? remote : (saved || "1");
   const files = await unpackTarGz(await oneGzip(kind, version));
   await storeUnpacked(kind, files);
-  return version;
+  return { version, downloaded: true };
 }
 
 async function openPacked(slot, kind) {
@@ -513,15 +581,12 @@ function openShell(slot, page) {
   });
   const kind = Object.keys(GZIP_PAGE).find((name) => VIEWERS[name] === page) || "";
   const start = async () => {
-    const version = kind ? await refreshViewer(kind) : "1";
-    slot.frame.src = page + "?v=" + version + "&hold=1";
+    const report = kind ? await refreshViewer(kind) : { version: "1" };
+    slot.frame.src = page + "?v=" + (report.version || "1") + "&hold=1";
   };
   start().catch(() => {
     slot.frame.src = page + "?v=1&hold=1";
   });
-    .catch(() => {
-      slot.frame.src = page + "?v=54&hold=1";
-    });
   return slot.ready;
 }
 

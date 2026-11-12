@@ -128,3 +128,16 @@ Viewer object
 - Battery NB checks the stored JSON. If it is there, it calls populate
   with that string. If it is not, it calls import with the original file,
   saves the returned JSON, then calls populate.
+
+Viewer versions on start
+------------------------
+The start screen shows five rows before the desk is used:
+text editor, spreadsheet, PDF, Gantt, presentation.
+Each row checks the version on the phone against the server.
+A check mark means the version was checked.
+If the server number is newer, a download icon stays for at least one
+second while that gzip is pulled, extracted, and stored in the cache.
+The version is then written on the row and kept as the cache buster.
+Fonts are not in the gzip. The viewer downloads a font itself when it
+needs one, and caches it. The rest of the procedure is unchanged:
+check the version, pull a newer gzip, cache it, use the viewer object.
