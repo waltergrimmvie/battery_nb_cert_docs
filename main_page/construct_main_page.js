@@ -184,11 +184,11 @@ function showVersionGate(content) {
   content.append(article);
 
   return (async () => {
+    let anyDownload = false;
     for (const [kind] of VERSION_ROWS) {
       const row = rows[kind];
       row.mark.textContent = "✓";
       row.mark.classList.add("checked");
-      const started = Date.now();
       let report = { version: "", downloaded: false };
       try {
         report = await refreshViewer(kind);
@@ -196,15 +196,13 @@ function showVersionGate(content) {
         report = { version: await storedVersion(kind), downloaded: false };
       }
       if (report.downloaded) {
+        anyDownload = true;
         row.icon.textContent = "↓";
         row.icon.classList.add("downloading");
-        const wait = 1000 - (Date.now() - started);
-        if (wait > 0) await new Promise((pause) => setTimeout(pause, wait));
-        row.icon.textContent = "";
-        row.icon.classList.remove("downloading");
       }
       row.ver.textContent = report.version || "—";
     }
+    if (anyDownload) await new Promise((pause) => setTimeout(pause, 2000));
   })();
 }
 
