@@ -454,15 +454,23 @@ async function localFilesReady(kind) {
   return true;
 }
 
+// Open: compare the copy on the phone with the server. A newer server
+// number pulls the gzip, extracts it, and stores it. The version is the cache buster.
+async function refreshViewer(kind) {
+  const remote = await remoteNumber(GZIP_PAGE[kind].version);
+  const saved = await storedVersion(kind);
+  const ready = await localFilesReady(kind);
+  if (ready && saved && remote !== "0" && Number(remote) <= Number(saved)) return saved;
+  const version = remote !== "0" ? remote : (saved || "1");
+  const files = await unpackTarGz(await oneGzip(kind, version));
+  await storeUnpacked(kind, files);
+  return version;
+}
+
 async function openPacked(slot, kind) {
   if (slot.frame.dataset.shell === "1") return slot.ready;
   slot.frame.dataset.shell = "1";
-  // A copy on the phone is used as it is. No version check, no gzip.
-  if (!(await localFilesReady(kind))) {
-    const version = await remoteNumber(GZIP_PAGE[kind].version);
-    const files = await unpackTarGz(await oneGzip(kind, version === "0" ? "1" : version));
-    await storeUnpacked(kind, files);
-  }
+  await refreshViewer(kind);
   slot.ready = new Promise((resolve, reject) => {
     const wait = async () => {
       for (let i = 0; i < 60; i += 1) {
@@ -503,29 +511,14 @@ function openShell(slot, page) {
       wait().then(resolve).catch(reject);
     }, { once: true });
   });
-  const versionFile = VERSION_FILES[slot.wrap.dataset.viewer] || "/version_text_editor.txt";
-  const kind = slot.wrap.dataset.viewer === "sheet" ? "sheet" : slot.wrap.dataset.viewer === "doc" ? "doc" : "";
-  fetch(versionFile, { cache: "no-store" })
-    .then((response) => (response.ok ? response.text() : ""))
-    .then(async (text) => {
-      const number = String(text || "").trim();
-      const version = /^[0-9]+$/.test(number) && number !== "0" ? number : "54";
-      if (kind) {
-        const saved = await storedVersion(kind);
-        if (!saved || Number(version) > Number(saved)) {
-          const cache = await caches.open(FILE_CACHE);
-          const prefix = GZIP_PAGE[kind].prefix;
-          const keys = await cache.keys();
-          await Promise.all(keys.filter((key) => new URL(key.url).pathname.startsWith(prefix)).map((key) => cache.delete(key)));
-          const gz = await caches.open(GZIP_CACHE);
-          await gz.delete("/gzip/" + kind);
-          await gz.delete("/gzip/" + kind + "-version");
-        }
-        const gz = await caches.open(GZIP_CACHE);
-        await gz.put("/gzip/" + kind + "-version", new Response(version));
-      }
-      slot.frame.src = page + "?v=" + version + "&hold=1";
-    })
+  const kind = Object.keys(GZIP_PAGE).find((name) => VIEWERS[name] === page) || "";
+  const start = async () => {
+    const version = kind ? await refreshViewer(kind) : "1";
+    slot.frame.src = page + "?v=" + version + "&hold=1";
+  };
+  start().catch(() => {
+    slot.frame.src = page + "?v=1&hold=1";
+  });
     .catch(() => {
       slot.frame.src = page + "?v=54&hold=1";
     });

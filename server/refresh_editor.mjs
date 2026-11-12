@@ -71,8 +71,7 @@ export function prepareEditor(rawFiles) {
     "version.txt",
     "public/paint/boot.js",
     "wwwroot/js/modules/document-loader.js",
-    "fonts/Calibri-Regular.woff",
-    "fonts/Cambria-Regular.woff",
+    "fonts/check-font.js",
   ];
   const missing = required.filter((name) => !files.has(name));
   if (missing.length) throw new Error("The editor gzip is incomplete: " + missing.join(", "));

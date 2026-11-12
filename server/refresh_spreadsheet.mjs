@@ -62,7 +62,7 @@ export function prepareSpreadsheet(rawFiles) {
     "index.html",
     "version.txt",
     "public/sheet/boot.js",
-    "public/fonts/carlito-400-normal.woff",
+    "public/fonts/check-font.js",
   ];
   const missing = required.filter((name) => !files.has(name));
   if (missing.length) throw new Error("The spreadsheet gzip is incomplete: " + missing.join(", "));
